@@ -1,0 +1,23 @@
+{
+  "name": "attendance_system_e2i_backend",
+  "version": "1.0.0",
+  "description": "This is a attendance app made by E2I",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Envirozone/attendance_system_e2i_backend.git"
+  },
+  "author": "E2I",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Envirozone/attendance_system_e2i_backend/issues"
+  },
+  "homepage": "https://github.com/Envirozone/attendance_system_e2i_backend#readme",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
