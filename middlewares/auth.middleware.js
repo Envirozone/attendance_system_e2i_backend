@@ -15,3 +15,16 @@ exports.isLoggedIn = (req, res, next) => {
 
   next();
 };
+
+exports.isAuthorized =
+  (...roles) =>
+  async (req, res, next) => {
+    const userType = req.employee.employee.usertype;
+
+    if (!roles.includes(userType)) {
+      return res
+        .status(501)
+        .send({ message: "You Are Not Authorized To Access This Routes" });
+    }
+    next();
+  };

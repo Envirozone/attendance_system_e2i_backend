@@ -9,6 +9,7 @@ const { connectionToDB } = require("./config/db");
 
 // Importing Routes
 const userRouter = require("./routers/userRoutes");
+const adminRouter = require("./routers/adminRoutes");
 
 // Configure ENV File
 require("dotenv").config();
@@ -29,6 +30,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Making Routes
 app.use("/api/vi/user", userRouter);
+app.use("/api/vi/admin", adminRouter);
 
 // Start Server
 app.listen(PORT, async () => {

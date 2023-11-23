@@ -67,26 +67,29 @@ const employeeSchema = new mongoose.Schema(
     attendance: [
       {
         date: {
-          type: Date,
+          type: String,
         },
         loginTime: {
-          type: Date,
+          type: String,
         },
         logoutTime: {
-          type: Date,
+          type: String,
         },
         attendanceStatus: {
-          type: String,
+          type: Boolean,
         },
         task: {
           type: String,
         },
         workHours: {
-          type: Number,
+          type: String,
         },
         taskReport: {
           type: String,
         },
+      },
+      {
+        timestamps: true,
       },
     ],
   },
