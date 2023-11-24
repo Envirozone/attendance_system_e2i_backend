@@ -70,7 +70,7 @@ exports.userLoginController = async (req, res) => {
 
     res
       .status(200)
-      .send({ message: "SuccessFully Login", employee, success: true });
+      .send({ message: "SuccessFully Login", token, employee, success: true });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }

@@ -29,8 +29,8 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Making Routes
-app.use("/api/vi/user", userRouter);
-app.use("/api/vi/admin", adminRouter);
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/admin", adminRouter);
 
 // Start Server
 app.listen(PORT, async () => {
