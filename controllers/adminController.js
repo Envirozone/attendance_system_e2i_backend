@@ -1,8 +1,26 @@
 const Employee = require("../models/userModel");
+const path = require("path");
+const fs = require("fs");
+
+const { google } = require("googleapis");
+// Your Google Cloud Platform credentials file
+const auth = require("../auth.json");
+
+// Google Drive APIs Configuration
+const drive = google.drive({
+  version: "v3",
+  auth: new google.auth.GoogleAuth({
+    credentials: auth,
+    scopes: ["https://www.googleapis.com/auth/drive.file"],
+  }),
+});
 
 exports.userSignupController = async (req, res) => {
   try {
-    const { password, email, username, first_name } = req.body;
+    // Access the uploaded image
+    const image = req.file;
+
+    const { password, email, username, first_name, profile } = req.body;
 
     if (!first_name || !username || !email || !password) {
       return res.status(501).send("Please Fill All Fields");
@@ -16,7 +34,45 @@ exports.userSignupController = async (req, res) => {
         .send({ message: "Employee Already Exist With This Email" });
     }
 
-    const employee = new Employee(req.body);
+    let imgId;
+
+    // Uploading Image on Drive
+    if (req.file) {
+      const response = await drive.files.create({
+        requestBody: {
+          name: req.file.originalname,
+          mimeType: req.file.mimetype,
+          // Get From Created Folder URL on Google Drive
+          parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
+        },
+        media: {
+          body: fs.createReadStream(req.file.path),
+        },
+      });
+
+      // Save additional data to your backend (you can modify this part as needed)
+      const { data } = response;
+      imgId = data.id;
+      const imageData = {
+        fileName: data.name,
+        fileId: data.id,
+        // Add more data fields if needed
+      };
+
+      // Removing Image From Server (it take call back function)
+      fs.rm(`./uploads/${imageData.fileName}`, (err) => {
+        if (!err) {
+          console.log("File deleted successfully");
+        } else {
+          console.error(err);
+        }
+      });
+    }
+
+    const employee = new Employee({
+      ...req.body,
+      profile: `https://drive.google.com/uc?id=${imgId}`,
+    });
 
     await employee.save();
 
@@ -149,6 +205,3 @@ exports.updateAttendanceController = async (req, res) => {
     res.status(500).send({ message: error.message, success: false });
   }
 };
-
-// login attendace   location
-// logout attendace

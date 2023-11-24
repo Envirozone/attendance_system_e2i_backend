@@ -9,13 +9,16 @@ const {
   updateAttendanceController,
 } = require("../controllers/adminController");
 const { isLoggedIn, isAuthorized } = require("../middlewares/auth.middleware");
+const { upload } = require("../middlewares/multer.middleware");
 
-adminRouter.post(
-  "/signup",
-  isLoggedIn,
-  isAuthorized("admin"),
-  userSignupController
-);
+adminRouter.post("/signup", upload.single("profile"), userSignupController);
+// adminRouter.post(
+//   "/signup",
+//   isLoggedIn,
+//   isAuthorized("admin"),
+//   upload.single("profile"),
+//   userSignupController
+// );
 
 adminRouter.get(
   "/getUser/:id",

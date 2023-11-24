@@ -52,14 +52,16 @@ const employeeSchema = new mongoose.Schema(
       default: "developer",
     },
     skills: {
-      type: [String],
+      type: String,
     },
     position: {
       type: String,
     },
+    address: {
+      type: String,
+    },
     city: {
       type: String,
-      trim: true,
     },
     state: {
       type: String,

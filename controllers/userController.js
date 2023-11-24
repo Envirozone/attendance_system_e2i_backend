@@ -1,33 +1,18 @@
 const Employee = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
+const geolib = require("geolib");
 
-const targetLocation = {
+const officeLocation = {
   latitude: 28.6818304,
   longitude: 77.185024,
 };
 
-function toRadians(degrees) {
-  return degrees * (Math.PI / 180);
-}
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const distance = R * c; // Distance in kilometers
-
-  return distance;
+function isAtOfficeLocation(employeeLocation) {
+  const accuracyThreshold = 50;
+  const distance = geolib.getDistance(employeeLocation, officeLocation);
+  console.log("distance", distance);
+  return distance <= accuracyThreshold;
 }
 
 exports.userLoginController = async (req, res) => {
@@ -110,14 +95,7 @@ exports.loginAttendanceController = async (req, res) => {
       return res.status(501).send({ message: "Invalid coordinates" });
     }
 
-    const distance = calculateDistance(
-      latitude,
-      longitude,
-      targetLocation.latitude,
-      targetLocation.longitude
-    );
-
-    if (distance <= 0.05) {
+    if (isAtOfficeLocation({ latitude, longitude })) {
       // 50 meters in kilometers
       const time = moment().format("DD-MM-YYYY h:mm A");
       const date = time.split(" ")[0];
@@ -164,50 +142,63 @@ exports.logoutAttendanceController = async (req, res) => {
 
     const { attendaceId } = req.params;
 
-    const { taskReport } = req.body;
+    const { taskReport, latitude, longitude } = req.body;
 
-    const time = moment().format("DD-MM-YYYY h:mm A");
-    const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
-
-    const employee = await Employee.findById({ _id: id });
-
-    if (!employee) {
-      return res.status(501).send({ message: "Employee Not Found" });
+    if (!latitude || !longitude) {
+      return res.status(501).send({ message: "Invalid coordinates" });
     }
 
-    const attendanceReport = employee.attendance.find(
-      (record) => record._id.toString() === attendaceId.toString()
-    );
+    if (isAtOfficeLocation({ latitude, longitude })) {
+      // 50 meters in kilometers
+      const time = moment().format("DD-MM-YYYY h:mm A");
+      const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
 
-    if (!attendanceReport) {
-      return res
-        .status(501)
-        .send({ message: "You Are Not Login, First Login!!" });
+      const employee = await Employee.findById({ _id: id });
+
+      if (!employee) {
+        return res.status(501).send({ message: "Employee Not Found" });
+      }
+
+      const attendanceReport = employee.attendance.find(
+        (record) => record._id.toString() === attendaceId.toString()
+      );
+
+      if (!attendanceReport) {
+        return res
+          .status(501)
+          .send({ message: "You Are Not Login, First Login!!" });
+      }
+
+      // Calculating Working Hours
+      const format = "hh:mm A";
+
+      const startMoment = moment(attendanceReport.loginTime, format);
+      const endMoment = moment(logoutTime, format);
+
+      if (!startMoment.isValid() || !endMoment.isValid()) {
+        return "Invalid Time Format!!";
+      }
+
+      const duration = moment.duration(endMoment.diff(startMoment));
+
+      const hours = Math.floor(duration.asHours());
+      const minutes = Math.floor(duration.asMinutes()) % 60;
+
+      attendanceReport.attendanceStatus = false;
+      attendanceReport.logoutTime = logoutTime;
+      attendanceReport.taskReport = taskReport;
+      attendanceReport.workHours = `${hours}:${minutes} Hours`;
+
+      await employee.save();
+
+      res
+        .status(200)
+        .send({ message: "You Logout Successfully, With Correct Location!" });
+    } else {
+      return res.status(501).send({
+        message: "You Are Not In The Right Location.",
+      });
     }
-
-    // Calculating Working Hours
-    const format = "hh:mm A";
-
-    const startMoment = moment(attendanceReport.loginTime, format);
-    const endMoment = moment(logoutTime, format);
-
-    if (!startMoment.isValid() || !endMoment.isValid()) {
-      return "Invalid Time Format!!";
-    }
-
-    const duration = moment.duration(endMoment.diff(startMoment));
-
-    const hours = Math.floor(duration.asHours());
-    const minutes = Math.floor(duration.asMinutes()) % 60;
-
-    attendanceReport.attendanceStatus = false;
-    attendanceReport.logoutTime = logoutTime;
-    attendanceReport.taskReport = taskReport;
-    attendanceReport.workHours = `${hours}:${minutes} Hours`;
-
-    await employee.save();
-
-    res.status(200).send({ message: "You Logout Successfully" });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
