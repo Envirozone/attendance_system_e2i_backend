@@ -6,7 +6,6 @@ const {
   getUserController,
   loginAttendanceController,
   logoutAttendanceController,
-  getLocationController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -21,7 +20,5 @@ userRouter.patch(
   isLoggedIn,
   logoutAttendanceController
 );
-
-// userRouter.get("/getLocation", getLocationController);
 
 module.exports = userRouter;

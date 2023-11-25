@@ -74,11 +74,19 @@ const employeeSchema = new mongoose.Schema(
         loginTime: {
           type: String,
         },
+        loginImage: {
+          type: String,
+        },
         logoutTime: {
           type: String,
         },
         attendanceStatus: {
           type: Boolean,
+        },
+        attendanceType: {
+          type: String,
+          enum: ["halfday", "fullday", "shortday", "updateonlogout"],
+          default: "updateonlogout",
         },
         task: {
           type: String,

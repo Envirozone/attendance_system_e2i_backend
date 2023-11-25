@@ -69,10 +69,19 @@ exports.userSignupController = async (req, res) => {
       });
     }
 
-    const employee = new Employee({
-      ...req.body,
-      profile: `https://drive.google.com/uc?id=${imgId}`,
-    });
+    // Creating New Employee
+    let employee;
+
+    if (req.file) {
+      employee = new Employee({
+        ...req.body,
+        profile: `https://drive.google.com/uc?id=${imgId}`,
+      });
+    } else {
+      employee = new Employee({
+        ...req.body,
+      });
+    }
 
     await employee.save();
 
@@ -170,6 +179,7 @@ exports.updateAttendanceController = async (req, res) => {
       logoutTime,
       loginTime,
       date,
+      attendanceType,
     } = req.body;
 
     const employee = await Employee.findById({ _id: userId });
@@ -194,6 +204,8 @@ exports.updateAttendanceController = async (req, res) => {
     attendanceReport.task = task || attendanceReport.task;
     attendanceReport.taskReport = taskReport || attendanceReport.taskReport;
     attendanceReport.workHours = workHours || attendanceReport.workHours;
+    attendanceReport.attendanceType =
+      attendanceType || attendanceReport.attendanceType;
 
     await employee.save();
 
