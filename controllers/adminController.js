@@ -19,6 +19,7 @@ exports.userSignupController = async (req, res) => {
   try {
     // Access the uploaded image
     const image = req.file;
+    console.log(image);
 
     const { password, email, username, first_name, profile } = req.body;
 
