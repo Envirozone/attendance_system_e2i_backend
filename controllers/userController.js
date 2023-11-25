@@ -277,3 +277,25 @@ exports.logoutAttendanceController = async (req, res) => {
     res.status(500).send({ message: error.message, success: false });
   }
 };
+
+exports.latestAttendanceController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+
+    const employee = await Employee.findById({ _id: id });
+
+    const latestAttendance = employee.attendance.slice(-1)[0];
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    res.status(200).send({
+      message: "Latest Attendance Status Updated",
+      success: true,
+      latestAttendance,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};

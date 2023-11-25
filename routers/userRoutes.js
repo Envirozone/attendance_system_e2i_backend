@@ -6,6 +6,7 @@ const {
   getUserController,
   loginAttendanceController,
   logoutAttendanceController,
+  latestAttendanceController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -26,5 +27,6 @@ userRouter.patch(
   isLoggedIn,
   logoutAttendanceController
 );
+userRouter.get("/latestAttendance", isLoggedIn, latestAttendanceController);
 
 module.exports = userRouter;
