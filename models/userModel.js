@@ -37,7 +37,7 @@ const employeeSchema = new mongoose.Schema(
     },
     usertype: {
       type: String,
-      enum: ["client", "admin"],
+      enum: ["client", "serviceengineer", "admin"],
       default: "client",
     },
     salary: {

@@ -284,6 +284,14 @@ exports.latestAttendanceController = async (req, res) => {
 
     const employee = await Employee.findById({ _id: id });
 
+    if (employee.attendance.length === 0) {
+      return res.status(200).send({
+        message: "Latest Attendance Status Updated",
+        success: true,
+        latestAttendance: {},
+      });
+    }
+
     const latestAttendance = employee.attendance.slice(-1)[0];
 
     if (!employee) {
