@@ -7,6 +7,7 @@ const {
   getUserByAdminController,
   getAllUserByAdminController,
   updateAttendanceController,
+  latestAttendanceByIdController,
 } = require("../controllers/adminController");
 const { isLoggedIn, isAuthorized } = require("../middlewares/auth.middleware");
 const { upload } = require("../middlewares/multer.middleware");
@@ -45,6 +46,13 @@ adminRouter.patch(
   isLoggedIn,
   isAuthorized("admin"),
   updateAttendanceController
+);
+
+adminRouter.get(
+  "/latestAttendanceById/:id",
+  isLoggedIn,
+  isAuthorized("admin"),
+  latestAttendanceByIdController
 );
 
 module.exports = adminRouter;

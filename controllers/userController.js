@@ -19,13 +19,24 @@ const drive = google.drive({
 });
 
 const officeLocation = {
-  latitude: 28.6818304,
-  longitude: 77.185024,
+  latitude: 28.6830441,
+  longitude: 77.1347585,
 };
 
 function isAtOfficeLocation(employeeLocation) {
+  const employeeLatitude = +employeeLocation.latitude;
+  const employeeLongitude = +employeeLocation.longitude;
+  console.log(
+    "employe-location",
+    { employeeLatitude, employeeLongitude },
+    "office-location",
+    officeLocation
+  );
   const accuracyThreshold = 50;
-  const distance = geolib.getDistance(employeeLocation, officeLocation);
+  const distance = geolib.getDistance(
+    { latitude: employeeLatitude, longitude: employeeLongitude },
+    officeLocation
+  );
   console.log("distance", distance);
   return distance <= accuracyThreshold;
 }
@@ -102,6 +113,108 @@ exports.getUserController = async (req, res) => {
     res.status(200).send({
       message: "Employee Data Successfully Fetched",
       employee,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.updateUserController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Employee Id Not Found" });
+    }
+
+    let employee = await Employee.findByIdAndUpdate(
+      { _id: id },
+      {
+        $set: req.body,
+      },
+      {
+        runValidators: true,
+      }
+    );
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    employee.password = undefined;
+
+    res.status(200).send({
+      message: "Employee Data Updated Successfully",
+      employee,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.updateUserProfileController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Employee Id Not Found" });
+    }
+
+    let employee = await Employee.findById({ _id: id });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    const profileImage = req.file;
+
+    if (!profileImage) {
+      return res
+        .status(501)
+        .send({ message: "Please Select Your Picture First!" });
+    }
+
+    // Uploading Image on Drive
+    let imgId;
+
+    const response = await drive.files.create({
+      requestBody: {
+        name: req.file.originalname,
+        mimeType: req.file.mimetype,
+        // Get From Created Folder URL on Google Drive
+        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
+      },
+      media: {
+        body: fs.createReadStream(req.file.path),
+      },
+    });
+
+    // Save additional data to your backend (you can modify this part as needed)
+    const { data } = response;
+    imgId = data.id;
+    const imageData = {
+      fileName: data.name,
+      fileId: data.id,
+      // Add more data fields if needed
+    };
+
+    // Removing Image From Server (it take call back function)
+    fs.rm(`./uploads/${imageData.fileName}`, (err) => {
+      if (!err) {
+        console.log("File deleted successfully");
+      } else {
+        console.error(err);
+      }
+    });
+
+    employee.profile = `https://drive.google.com/uc?id=${imgId}`;
+
+    employee.save();
+
+    res.status(200).send({
+      message: "Employee Profile Image Updated Successfully",
       success: true,
     });
   } catch (error) {
