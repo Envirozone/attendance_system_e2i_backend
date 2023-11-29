@@ -26,12 +26,6 @@ const officeLocation = {
 function isAtOfficeLocation(employeeLocation) {
   const employeeLatitude = +employeeLocation.latitude;
   const employeeLongitude = +employeeLocation.longitude;
-  console.log(
-    "employe-location",
-    { employeeLatitude, employeeLongitude },
-    "office-location",
-    officeLocation
-  );
   const accuracyThreshold = 50;
   const distance = geolib.getDistance(
     { latitude: employeeLatitude, longitude: employeeLongitude },
@@ -228,7 +222,6 @@ exports.loginAttendanceController = async (req, res) => {
     const loginImage = req.file;
     const id = req.employee.employee._id;
     const { task, latitude, longitude } = req.body;
-
     if (!loginImage) {
       return res
         .status(501)
@@ -239,77 +232,82 @@ exports.loginAttendanceController = async (req, res) => {
       return res.status(501).send({ message: "Invalid coordinates" });
     }
 
-    if (isAtOfficeLocation({ latitude, longitude })) {
+    if (!isAtOfficeLocation({ latitude, longitude })) {
       // 50 meters in kilometers
-      const time = moment().format("DD-MM-YYYY h:mm A");
-      const date = time.split(" ")[0];
-      const loginTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
-
-      const employee = await Employee.findById({ _id: id });
-
-      if (!employee) {
-        return res.status(501).send({ message: "Employee Not Found" });
-      }
-
-      // Uploading Image on Drive
-      let imgId;
-
-      const response = await drive.files.create({
-        requestBody: {
-          name: req.file.originalname,
-          mimeType: req.file.mimetype,
-          // Get From Created Folder URL on Google Drive
-          parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
-        },
-        media: {
-          body: fs.createReadStream(req.file.path),
-        },
-      });
-
-      // Save additional data to your backend (you can modify this part as needed)
-      const { data } = response;
-      imgId = data.id;
-      const imageData = {
-        fileName: data.name,
-        fileId: data.id,
-        // Add more data fields if needed
-      };
-
-      // Removing Image From Server (it take call back function)
-      fs.rm(`./uploads/${imageData.fileName}`, (err) => {
-        if (!err) {
-          console.log("File deleted successfully");
-        } else {
-          console.error(err);
-        }
-      });
-
-      const attandance = {
-        date,
-        loginTime,
-        loginImage: `https://drive.google.com/uc?id=${imgId}`,
-        task,
-        attendanceStatus: true,
-        taskReport: "",
-        workHours: "",
-        logoutTime: "",
-        attendanceType: "updateonlogout",
-      };
-
-      await employee.attendance.push(attandance);
-
-      await employee.save();
-
-      res.status(200).send({
-        message: "You Login Successfully, With Right Location!",
-        attandance,
-        success: true,
-      });
-    } else {
       return res.status(501).send({
         message: "You Are Not In The Right Location.",
       });
     }
+
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const date = time.split(" ")[0];
+    const loginTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    const employee = await Employee.findById({ _id: id });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    // Uploading Image on Drive
+    let imgId;
+
+    const response = await drive.files.create({
+      requestBody: {
+        name: req.file.originalname,
+        mimeType: req.file.mimetype,
+        // Get From Created Folder URL on Google Drive
+        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
+      },
+      media: {
+        body: fs.createReadStream(req.file.path),
+      },
+    });
+
+    // Save additional data to your backend (you can modify this part as needed)
+    const { data } = response;
+    imgId = data.id;
+    const imageData = {
+      fileName: data.name,
+      fileId: data.id,
+      // Add more data fields if needed
+    };
+
+    // Removing Image From Server (it take call back function)
+    fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+      if (!err) {
+        console.log("File deleted successfully");
+      } else {
+        console.error(err);
+      }
+    });
+
+    const attandance = {
+      date,
+      loginTime,
+      loginImage: `https://drive.google.com/uc?id=${imgId}`,
+      task,
+      attendanceStatus: true,
+      taskReport: "",
+      workHours: "",
+      logoutTime: "",
+      attendanceType: "updateonlogout",
+      loginLocation: {
+        latitude: latitude,
+        longitude: longitude,
+        locationName: "**********************",
+      },
+    };
+
+    await employee.attendance.push(attandance);
+
+    await employee.save();
+
+    res.status(200).send({
+      message: "You Login Successfully, With Right Location!",
+      attandance,
+      success: true,
+    });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
@@ -361,13 +359,15 @@ exports.logoutAttendanceController = async (req, res) => {
       const duration = moment.duration(endMoment.diff(startMoment));
 
       const hours = Math.floor(duration.asHours());
-      console.log(hours);
       const minutes = Math.floor(duration.asMinutes()) % 60;
 
       attendanceReport.attendanceStatus = false;
       attendanceReport.logoutTime = logoutTime;
       attendanceReport.taskReport = taskReport;
       attendanceReport.workHours = `${hours}:${minutes} Hours`;
+      attendanceReport.logoutLocation.latitude = latitude;
+      attendanceReport.logoutLocation.longitude = longitude;
+      attendanceReport.logoutLocation.locationName = "*******************";
       if (hours >= 7) {
         attendanceReport.attendanceType = "fullday";
       } else if (hours >= 4) {

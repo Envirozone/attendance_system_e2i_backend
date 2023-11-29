@@ -97,6 +97,41 @@ const employeeSchema = new mongoose.Schema(
         taskReport: {
           type: String,
         },
+        loginLocation: {
+          latitude: {
+            type: Number,
+          },
+          longitude: {
+            type: Number,
+          },
+          locationName: {
+            type: String,
+          },
+        },
+        logoutLocation: {
+          latitude: {
+            type: Number,
+          },
+          longitude: {
+            type: Number,
+          },
+          locationName: {
+            type: String,
+          },
+        },
+        locations: [
+          {
+            latitude: {
+              type: Number,
+            },
+            longitude: {
+              type: Number,
+            },
+            locationName: {
+              type: String,
+            },
+          },
+        ],
       },
       {
         timestamps: true,
