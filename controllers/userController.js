@@ -489,3 +489,59 @@ exports.latestAttendanceController = async (req, res) => {
     res.status(500).send({ message: error.message, success: false });
   }
 };
+
+exports.getUserCordinatesOnInterval = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res
+        .status(501)
+        .send({ message: "Employee Denied Access Location" });
+    }
+
+    const employee = await Employee.findById({ _id: id });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    if (employee.attendance.slice(-1)[0].attendanceStatus == true) {
+      //  Getting Location Info By latitude and longitude by Open Cage APIs
+      let locationName = "";
+
+      if (latitude && longitude) {
+        try {
+          const response = await axios.get(
+            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
+          );
+
+          const result = response.data.results[0];
+          locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+
+          const locationInfo = {
+            latitude: latitude,
+            longitude: longitude,
+            locationName: locationName,
+          };
+
+          employee.attendance.slice(-1)[0].locations.push(locationInfo);
+
+          employee.save();
+
+          res.status(200).send({
+            message: "Location Fetched On Interval",
+            success: true,
+          });
+        } catch (error) {
+          console.error("Error fetching location:", error.message);
+        }
+      }
+    } else {
+      return res.status(501).send({ message: "Employee Logout" });
+    }
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
