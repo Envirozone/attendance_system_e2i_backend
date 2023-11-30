@@ -4,6 +4,7 @@ const moment = require("moment");
 const geolib = require("geolib");
 const path = require("path");
 const fs = require("fs");
+const axios = require("axios");
 
 const { google } = require("googleapis");
 // Your Google Cloud Platform credentials file
@@ -282,6 +283,22 @@ exports.loginAttendanceController = async (req, res) => {
       }
     });
 
+    //  Getting Location Info By latitude and longitude by Open Cage APIs
+    let locationName = "";
+
+    if (latitude && longitude) {
+      try {
+        const response = await axios.get(
+          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
+        );
+
+        const result = response.data.results[0];
+        locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+      } catch (error) {
+        console.error("Error fetching location:", error.message);
+      }
+    }
+
     const attandance = {
       date,
       loginTime,
@@ -295,7 +312,7 @@ exports.loginAttendanceController = async (req, res) => {
       loginLocation: {
         latitude: latitude,
         longitude: longitude,
-        locationName: "**********************",
+        locationName: locationName,
       },
     };
 
@@ -361,13 +378,29 @@ exports.logoutAttendanceController = async (req, res) => {
       const hours = Math.floor(duration.asHours());
       const minutes = Math.floor(duration.asMinutes()) % 60;
 
+      //  Getting Location Info By latitude and longitude by Open Cage APIs
+      let locationName = "";
+
+      if (latitude && longitude) {
+        try {
+          const response = await axios.get(
+            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
+          );
+
+          const result = response.data.results[0];
+          locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+        } catch (error) {
+          console.error("Error fetching location:", error.message);
+        }
+      }
+
       attendanceReport.attendanceStatus = false;
       attendanceReport.logoutTime = logoutTime;
       attendanceReport.taskReport = taskReport;
       attendanceReport.workHours = `${hours}:${minutes} Hours`;
       attendanceReport.logoutLocation.latitude = latitude;
       attendanceReport.logoutLocation.longitude = longitude;
-      attendanceReport.logoutLocation.locationName = "*******************";
+      attendanceReport.logoutLocation.locationName = locationName;
       if (hours >= 7) {
         attendanceReport.attendanceType = "fullday";
       } else if (hours >= 4) {
