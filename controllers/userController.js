@@ -224,16 +224,43 @@ exports.loginAttendanceController = async (req, res) => {
     const id = req.employee.employee._id;
     const { task, latitude, longitude } = req.body;
     if (!loginImage) {
+      // Removing Image From Server (it take call back function)
+      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+        if (!err) {
+          console.log("File deleted successfully");
+        } else {
+          console.error(err);
+        }
+      });
+
       return res
         .status(501)
         .send({ message: "Please Click Your Picture First!" });
     }
 
     if (!latitude || !longitude) {
+      // Removing Image From Server (it take call back function)
+      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+        if (!err) {
+          console.log("File deleted successfully");
+        } else {
+          console.error(err);
+        }
+      });
+
       return res.status(501).send({ message: "Invalid coordinates" });
     }
 
     if (!isAtOfficeLocation({ latitude, longitude })) {
+      // Removing Image From Server (it take call back function)
+      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+        if (!err) {
+          console.log("File deleted successfully");
+        } else {
+          console.error(err);
+        }
+      });
+
       // 50 meters in kilometers
       return res.status(501).send({
         message: "You Are Not In The Right Location.",
@@ -247,6 +274,15 @@ exports.loginAttendanceController = async (req, res) => {
     const employee = await Employee.findById({ _id: id });
 
     if (!employee) {
+      // Removing Image From Server (it take call back function)
+      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+        if (!err) {
+          console.log("File deleted successfully");
+        } else {
+          console.error(err);
+        }
+      });
+
       return res.status(501).send({ message: "Employee Not Found" });
     }
 
