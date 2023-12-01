@@ -60,8 +60,27 @@ exports.userLoginController = async (req, res) => {
         .send({ message: "Password Not Matched, Please Try Again" });
     }
 
+    const payload = {
+      _id: employee._id,
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      username: employee.username,
+      email: employee.email,
+      phone: employee.phone,
+      profile: employee.profile,
+      usertype: employee.usertype,
+      salary: employee.salary,
+      hireDate: employee.hireDate,
+      department: employee.department,
+      skills: employee.skills,
+      position: employee.position,
+      address: employee.address,
+      city: employee.city,
+      state: employee.state,
+    };
+
     // Generate the JWT
-    const token = jwt.sign({ employee }, process.env.JWT_SECRET_KEY, {
+    const token = jwt.sign({ employee: payload }, process.env.JWT_SECRET_KEY, {
       expiresIn: "365d",
     });
 
@@ -74,9 +93,12 @@ exports.userLoginController = async (req, res) => {
       maxAge: 365 * 24 * 60 * 60 * 1000,
     });
 
-    res
-      .status(200)
-      .send({ message: "SuccessFully Login", token, employee, success: true });
+    res.status(200).send({
+      message: "SuccessFully Login",
+      token,
+      success: true,
+      employee: payload,
+    });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
@@ -541,6 +563,46 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
     } else {
       return res.status(501).send({ message: "Employee Logout" });
     }
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getAttendanceByDateController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+
+    const { date } = req.params;
+    console.log(date);
+
+    // Parse the input date using moment
+    const parsedDate = moment(date, "YYYY-MM-DD");
+    console.log(parsedDate);
+
+    // Format the date in the "dd-mm-yyyy" format
+    const formattedDate = parsedDate.format("DD-MM-YYYY");
+    console.log(formattedDate);
+
+    // const employee = await Employee.find({
+    //   _id: id,
+    //   "attendance.date": formattedDate,
+    // });
+
+    const employee = await Employee.find({
+      _id: id,
+    });
+
+    const attendance = employee[0].attendance.find(
+      (item) => item.date === formattedDate
+    );
+
+    console.log(attendance);
+
+    res.status(200).send({
+      message: `${formattedDate} Attendance Info Fetched`,
+      success: true,
+      attendance,
+    });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }

@@ -10,6 +10,7 @@ const {
   updateUserController,
   updateUserProfileController,
   getUserCordinatesOnInterval,
+  getAttendanceByDateController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -43,6 +44,12 @@ userRouter.post(
   "/getUserCordinatesOnInterval",
   isLoggedIn,
   getUserCordinatesOnInterval
+);
+
+userRouter.get(
+  "/getAttendanceByDate/:date",
+  isLoggedIn,
+  getAttendanceByDateController
 );
 
 module.exports = userRouter;
