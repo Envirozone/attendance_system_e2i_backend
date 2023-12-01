@@ -11,6 +11,7 @@ const {
   updateUserProfileController,
   getUserCordinatesOnInterval,
   getAttendanceByDateController,
+  getUserAttendanceController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -50,6 +51,12 @@ userRouter.get(
   "/getAttendanceByDate/:date",
   isLoggedIn,
   getAttendanceByDateController
+);
+
+userRouter.get(
+  "/getUserAttendance/:page",
+  isLoggedIn,
+  getUserAttendanceController
 );
 
 module.exports = userRouter;

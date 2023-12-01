@@ -592,9 +592,9 @@ exports.getAttendanceByDateController = async (req, res) => {
       _id: id,
     });
 
-    const attendance = employee.attendance.filter(
-      (item) => item.date === formattedDate
-    );
+    const attendance = employee.attendance
+      .filter((item) => item.date === formattedDate)
+      .sort();
 
     console.log(attendance);
 
@@ -602,6 +602,37 @@ exports.getAttendanceByDateController = async (req, res) => {
       message: `${formattedDate} Attendance Info Fetched`,
       success: true,
       attendance,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getUserAttendanceController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+    const { page } = req.params;
+    const limit = 5;
+
+    if (!id) {
+      return res.status(501).send({ message: "Employee Id Not Found" });
+    }
+
+    const employee = await Employee.findById(id).select("attendance -_id");
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    const attendance = employee?.attendance;
+
+    const attendances = attendance.slice(page * limit, page * limit + limit);
+
+    res.status(200).send({
+      message: "Employee Data Successfully Fetched",
+      attendances,
+      count: attendances?.length,
+      success: true,
     });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
