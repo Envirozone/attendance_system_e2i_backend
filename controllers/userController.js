@@ -588,11 +588,11 @@ exports.getAttendanceByDateController = async (req, res) => {
     //   "attendance.date": formattedDate,
     // });
 
-    const employee = await Employee.find({
+    const employee = await Employee.findOne({
       _id: id,
     });
 
-    const attendance = employee[0].attendance.find(
+    const attendance = employee.attendance.filter(
       (item) => item.date === formattedDate
     );
 
