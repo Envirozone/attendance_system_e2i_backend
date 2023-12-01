@@ -371,6 +371,7 @@ exports.loginAttendanceController = async (req, res) => {
         latitude: latitude,
         longitude: longitude,
         locationName: locationName,
+        time: loginTime,
       },
     };
 
@@ -458,6 +459,7 @@ exports.logoutAttendanceController = async (req, res) => {
       attendanceReport.workHours = `${hours}:${minutes} Hours`;
       attendanceReport.logoutLocation.latitude = latitude;
       attendanceReport.logoutLocation.longitude = longitude;
+      attendanceReport.logoutLocation.time = logoutTime;
       attendanceReport.logoutLocation.locationName = locationName;
       if (hours >= 7) {
         attendanceReport.attendanceType = "fullday";
@@ -517,6 +519,9 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
     const id = req.employee.employee._id;
     const { latitude, longitude } = req.body;
 
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const IntervalTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
     if (!latitude || !longitude) {
       return res
         .status(501)
@@ -546,6 +551,7 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
             latitude: latitude,
             longitude: longitude,
             locationName: locationName,
+            time: IntervalTime,
           };
 
           employee.attendance.slice(-1)[0].locations.push(locationInfo);
@@ -627,11 +633,13 @@ exports.getUserAttendanceController = async (req, res) => {
     const attendance = employee?.attendance;
 
     const attendances = attendance.slice(page * limit, page * limit + limit);
+    const employeeDetails = req.employee.employee;
+    employeeDetails.attendance = attendances;
 
     res.status(200).send({
       message: "Employee Data Successfully Fetched",
-      attendances,
-      count: attendances?.length,
+      employeeDetails,
+      count: employee.attendance.length,
       success: true,
     });
   } catch (error) {

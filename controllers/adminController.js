@@ -152,7 +152,8 @@ exports.getUserByAdminController = async (req, res) => {
 
 exports.getAllUserByAdminController = async (req, res) => {
   try {
-    const employees = await Employee.find();
+    const employee = await Employee.find();
+    const employees = employee.filter((item) => item?.usertype !== "admin");
 
     if (!employees) {
       return res.status(501).send({ message: "Employees Data Not Found" });

@@ -107,6 +107,9 @@ const employeeSchema = new mongoose.Schema(
           locationName: {
             type: String,
           },
+          time: {
+            type: String,
+          },
         },
         logoutLocation: {
           latitude: {
@@ -116,6 +119,9 @@ const employeeSchema = new mongoose.Schema(
             type: Number,
           },
           locationName: {
+            type: String,
+          },
+          time: {
             type: String,
           },
         },
@@ -128,6 +134,9 @@ const employeeSchema = new mongoose.Schema(
               type: Number,
             },
             locationName: {
+              type: String,
+            },
+            time: {
               type: String,
             },
           },
