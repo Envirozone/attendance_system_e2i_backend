@@ -27,7 +27,7 @@ const officeLocation = {
 function isAtOfficeLocation(employeeLocation) {
   const employeeLatitude = +employeeLocation.latitude;
   const employeeLongitude = +employeeLocation.longitude;
-  const accuracyThreshold = 50;
+  const accuracyThreshold = 20000;
   const distance = geolib.getDistance(
     { latitude: employeeLatitude, longitude: employeeLongitude },
     officeLocation
@@ -351,7 +351,7 @@ exports.loginAttendanceController = async (req, res) => {
         );
 
         const result = response.data.results[0];
-        locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+        locationName = `${result.formatted}`;
       } catch (error) {
         console.error("Error fetching location:", error.message);
       }
@@ -447,7 +447,7 @@ exports.logoutAttendanceController = async (req, res) => {
           );
 
           const result = response.data.results[0];
-          locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+          locationName = `${result.formatted}`;
         } catch (error) {
           console.error("Error fetching location:", error.message);
         }
@@ -516,7 +516,7 @@ exports.latestAttendanceController = async (req, res) => {
 
 exports.getUserCordinatesOnInterval = async (req, res) => {
   try {
-    const id = req.employee.employee._id;
+    const id = req?.employee?.employee?._id;
     const { latitude, longitude } = req.body;
 
     const time = moment().format("DD-MM-YYYY h:mm A");
@@ -534,7 +534,10 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
       return res.status(501).send({ message: "Employee Not Found" });
     }
 
-    if (employee.attendance.slice(-1)[0].attendanceStatus == true) {
+    const leng = employee?.attendance.length;
+    console.log(leng);
+
+    if (employee.attendance[leng - 1].attendanceStatus == true) {
       //  Getting Location Info By latitude and longitude by Open Cage APIs
       let locationName = "";
 
@@ -545,7 +548,7 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
           );
 
           const result = response.data.results[0];
-          locationName = `${result.formatted} (${result.components.city}, ${result.components.country})`;
+          locationName = `${result.formatted}`;
 
           const locationInfo = {
             latitude: latitude,
