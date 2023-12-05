@@ -786,29 +786,19 @@ exports.serviceCheckOutController = async (req, res) => {
 
     const serviceReport = Service.serviceDetails[servicelength - 1];
 
-    const serviceData = {
-      checkOuttime: datetime,
-      checkOutlocation: location,
-      checkOutlatitude: latitude,
-      checkOutlongitude: longitude,
-      serviceReportImage,
-      serviceAndInstrumentImage,
-      workDone,
-      clientEmail,
-      clientMobile,
-      area,
-      clientName,
-      industryName,
-    };
-
-    const updatedEmployeeData = {
-      serviceReport: { ...serviceReport, serviceData },
-    };
-
-    // serviceReport.checkOuttime = datetime;
-    // serviceReport.checkOutlocation = location;
-    // serviceReport.checkOutlatitude = latitude;
-    // serviceReport.checkOutlongitude = longitude;
+    serviceReport.checkOuttime = datetime;
+    serviceReport.checkOutlocation = location;
+    serviceReport.checkOutlatitude = latitude;
+    serviceReport.checkOutlongitude = longitude;
+    serviceReport.industryName = industryName;
+    serviceReport.clientName = clientName;
+    serviceReport.area = area;
+    serviceReport.clientMobile = clientMobile;
+    serviceReport.clientEmail = clientEmail;
+    serviceReport.workDone = workDone;
+    serviceReport.serviceAndInstrumentImage = serviceAndInstrumentImage;
+    serviceReport.serviceReportImage = serviceReportImage;
+    serviceReport.servicestatus = false;
 
     await attendances.save();
 
@@ -837,12 +827,20 @@ exports.getLatestServiceReportController = async (req, res) => {
 
     const servicelength = Service.serviceDetails.length;
 
-    const serviceReport = Service.serviceDetails[servicelength - 1];
+    if (servicelength === 0) {
+      return res.status(200).send({
+        success: true,
+        message: "Successfully Fetched Latest Service Details",
+        serviceDetail: { servicestatus: false },
+      });
+    }
+
+    const serviceDetail = Service.serviceDetails[servicelength - 1];
 
     res.status(200).send({
       success: true,
-      message: "Successfully Check Out From Service Work",
-      serviceReport,
+      message: "Successfully Fetched Latest Service Details",
+      serviceDetail,
     });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
