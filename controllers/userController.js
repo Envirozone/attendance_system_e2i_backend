@@ -798,7 +798,7 @@ exports.serviceCheckOutController = async (req, res) => {
     serviceReport.workDone = workDone;
     serviceReport.serviceAndInstrumentImage = serviceAndInstrumentImage;
     serviceReport.serviceReportImage = serviceReportImage;
-    serviceReport.servicestatus = false;
+    serviceReport.serviceStatus = false;
 
     await attendances.save();
 
@@ -831,7 +831,7 @@ exports.getLatestServiceReportController = async (req, res) => {
       return res.status(200).send({
         success: true,
         message: "Successfully Fetched Latest Service Details",
-        serviceDetail: { servicestatus: false },
+        serviceDetail: { serviceStatus: false },
       });
     }
 
