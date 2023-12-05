@@ -28,7 +28,7 @@ const officeLocation = {
 function isAtOfficeLocation(employeeLocation) {
   const employeeLatitude = +employeeLocation.latitude;
   const employeeLongitude = +employeeLocation.longitude;
-  const accuracyThreshold = 25000;
+  const accuracyThreshold = 500000;
   const distance = geolib.getDistance(
     { latitude: employeeLatitude, longitude: employeeLongitude },
     officeLocation
@@ -363,20 +363,7 @@ exports.loginAttendanceController = async (req, res) => {
     });
 
     //  Getting Location Info By latitude and longitude by Open Cage APIs
-    let locationName = "";
-
-    if (latitude && longitude) {
-      try {
-        const response = await axios.get(
-          `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
-        );
-
-        const result = response.data.results[0];
-        locationName = `${result.formatted}`;
-      } catch (error) {
-        console.error("Error fetching location:", error.message);
-      }
-    }
+    const locationName = await getLocation(latitude, longitude);
 
     const attandance = {
       date,
@@ -429,84 +416,72 @@ exports.logoutAttendanceController = async (req, res) => {
       !isAtOfficeLocation({ latitude, longitude })
     ) {
       // 50 meters in kilometers
-      const time = moment().format("DD-MM-YYYY h:mm A");
-      const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
-
-      const employee = await Employee.findById({ _id: id });
-
-      if (!employee) {
-        return res.status(501).send({ message: "Employee Not Found" });
-      }
-
-      const attendanceReport = employee.attendance.find(
-        (record) => record._id.toString() === attendaceId.toString()
-      );
-
-      if (!attendanceReport) {
-        return res
-          .status(501)
-          .send({ message: "You Are Not Login, First Login!!" });
-      }
-
-      // Calculating Working Hours
-      const format = "hh:mm A";
-
-      const startMoment = moment(attendanceReport.loginTime, format);
-      const endMoment = moment(logoutTime, format);
-      const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
-
-      if (!startMoment.isValid() || !endMoment.isValid()) {
-        return "Invalid Time Format!!";
-      }
-
-      const duration = moment.duration(endMoment.diff(startMoment));
-
-      const hours = Math.floor(duration.asHours());
-      const minutes = Math.floor(duration.asMinutes()) % 60;
-
-      //  Getting Location Info By latitude and longitude by Open Cage APIs
-      let locationName = "";
-
-      if (latitude && longitude) {
-        try {
-          const response = await axios.get(
-            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
-          );
-
-          const result = response.data.results[0];
-          locationName = `${result.formatted}`;
-        } catch (error) {
-          console.error("Error fetching location:", error.message);
-        }
-      }
-
-      attendanceReport.logout = datetime;
-      attendanceReport.attendanceStatus = false;
-      attendanceReport.logoutTime = logoutTime;
-      attendanceReport.taskReport = taskReport;
-      attendanceReport.workHours = `${hours}:${minutes} Hours`;
-      attendanceReport.logoutLocation.latitude = latitude;
-      attendanceReport.logoutLocation.longitude = longitude;
-      attendanceReport.logoutLocation.time = logoutTime;
-      attendanceReport.logoutLocation.locationName = locationName;
-      if (hours >= 7) {
-        attendanceReport.attendanceType = "fullday";
-      } else if (hours >= 4) {
-        attendanceReport.attendanceType = "shortday";
-      } else {
-        attendanceReport.attendanceType = "halfday";
-      }
-
-      await employee.save();
-
-      res
-        .status(200)
-        .send({ message: "You Logout Successfully, With Correct Location!" });
-    } else {
       return res.status(501).send({
         message: "You Are Not In The Right Location.",
       });
     }
+
+    // 50 meters in kilometers
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    const employee = await Employee.findById({ _id: id });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    const attendanceReport = employee.attendance.find(
+      (record) => record._id.toString() === attendaceId.toString()
+    );
+
+    if (!attendanceReport) {
+      return res
+        .status(501)
+        .send({ message: "You Are Not Login, First Login!!" });
+    }
+
+    // Calculating Working Hours
+    const format = "hh:mm A";
+
+    const startMoment = moment(attendanceReport.loginTime, format);
+    const endMoment = moment(logoutTime, format);
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    if (!startMoment.isValid() || !endMoment.isValid()) {
+      return "Invalid Time Format!!";
+    }
+
+    const duration = moment.duration(endMoment.diff(startMoment));
+
+    const hours = Math.floor(duration.asHours());
+    const minutes = Math.floor(duration.asMinutes()) % 60;
+
+    //  Getting Location Info By latitude and longitude by Open Cage APIs
+    let locationName = await getLocation(latitude, longitude);
+
+    attendanceReport.logout = datetime;
+    attendanceReport.attendanceStatus = false;
+    attendanceReport.logoutTime = logoutTime;
+    attendanceReport.taskReport = taskReport;
+    attendanceReport.workHours = `${hours}:${minutes} Hours`;
+    attendanceReport.logoutLocation.latitude = latitude;
+    attendanceReport.logoutLocation.longitude = longitude;
+    attendanceReport.logoutLocation.time = logoutTime;
+    attendanceReport.logoutLocation.locationName = locationName;
+    if (hours >= 7) {
+      attendanceReport.attendanceType = "fullday";
+    } else if (hours >= 4) {
+      attendanceReport.attendanceType = "shortday";
+    } else {
+      attendanceReport.attendanceType = "halfday";
+    }
+
+    await employee.save();
+
+    res
+      .status(200)
+      .send({ message: "You Logout Successfully, With Correct Location!" });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
@@ -567,36 +542,23 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
 
     if (employee.attendance[leng - 1].attendanceStatus == true) {
       //  Getting Location Info By latitude and longitude by Open Cage APIs
-      let locationName = "";
+      let locationName = await getLocation(latitude, longitude);
 
-      if (latitude && longitude) {
-        try {
-          const response = await axios.get(
-            `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=e8222b950ee94b54ad953fa71f5dc238`
-          );
+      const locationInfo = {
+        latitude: latitude,
+        longitude: longitude,
+        locationName: locationName,
+        time: IntervalTime,
+      };
 
-          const result = response.data.results[0];
-          locationName = `${result.formatted}`;
+      employee.attendance.slice(-1)[0].locations.push(locationInfo);
 
-          const locationInfo = {
-            latitude: latitude,
-            longitude: longitude,
-            locationName: locationName,
-            time: IntervalTime,
-          };
+      employee.save();
 
-          employee.attendance.slice(-1)[0].locations.push(locationInfo);
-
-          employee.save();
-
-          res.status(200).send({
-            message: "Location Fetched On Interval",
-            success: true,
-          });
-        } catch (error) {
-          console.error("Error fetching location:", error.message);
-        }
-      }
+      res.status(200).send({
+        message: "Location Fetched On Interval",
+        success: true,
+      });
     } else {
       return res.status(501).send({ message: "Employee Logout" });
     }
