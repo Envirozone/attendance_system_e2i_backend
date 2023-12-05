@@ -12,6 +12,9 @@ const {
   getUserCordinatesOnInterval,
   getAttendanceByDateController,
   getUserAttendanceController,
+  serviceCheckInController,
+  serviceCheckOutController,
+  getLatestServiceReportController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -58,5 +61,11 @@ userRouter.get(
   isLoggedIn,
   getUserAttendanceController
 );
+
+userRouter.post("/service/checkin", isLoggedIn, serviceCheckInController);
+
+userRouter.post("/service/checkout", isLoggedIn, serviceCheckOutController);
+
+userRouter.get("/latest/service", isLoggedIn, getLatestServiceReportController);
 
 module.exports = userRouter;

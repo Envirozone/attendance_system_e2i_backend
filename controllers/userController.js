@@ -1,6 +1,6 @@
 const Employee = require("../models/userModel");
 const jwt = require("jsonwebtoken");
-const moment = require("moment");
+const moment = require("moment-timezone");
 const geolib = require("geolib");
 const path = require("path");
 const fs = require("fs");
@@ -9,6 +9,7 @@ const axios = require("axios");
 const { google } = require("googleapis");
 // Your Google Cloud Platform credentials file
 const auth = require("../auth.json");
+const { getLocation } = require("../middlewares/getLocation.Middleware");
 
 // Google Drive APIs Configuration
 const drive = google.drive({
@@ -27,7 +28,7 @@ const officeLocation = {
 function isAtOfficeLocation(employeeLocation) {
   const employeeLatitude = +employeeLocation.latitude;
   const employeeLongitude = +employeeLocation.longitude;
-  const accuracyThreshold = 20000;
+  const accuracyThreshold = 25000;
   const distance = geolib.getDistance(
     { latitude: employeeLatitude, longitude: employeeLongitude },
     officeLocation
@@ -245,6 +246,7 @@ exports.loginAttendanceController = async (req, res) => {
     const loginImage = req.file;
     const id = req.employee.employee._id;
     const { task, latitude, longitude } = req.body;
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
     if (!loginImage) {
       // Removing Image From Server (it take call back function)
       fs.rm(`./uploads/${req.file.originalname}`, (err) => {
@@ -273,7 +275,10 @@ exports.loginAttendanceController = async (req, res) => {
       return res.status(501).send({ message: "Invalid coordinates" });
     }
 
-    if (!isAtOfficeLocation({ latitude, longitude })) {
+    if (
+      req.employee.employee.usertype !== "serviceengineer" &&
+      !isAtOfficeLocation({ latitude, longitude })
+    ) {
       // Removing Image From Server (it take call back function)
       fs.rm(`./uploads/${req.file.originalname}`, (err) => {
         if (!err) {
@@ -288,6 +293,22 @@ exports.loginAttendanceController = async (req, res) => {
         message: "You Are Not In The Right Location.",
       });
     }
+
+    // if (!isAtOfficeLocation({ latitude, longitude })) {
+    //   // Removing Image From Server (it take call back function)
+    //   fs.rm(`./uploads/${req.file.originalname}`, (err) => {
+    //     if (!err) {
+    //       console.log("File deleted successfully");
+    //     } else {
+    //       console.error(err);
+    //     }
+    //   });
+
+    //   // 50 meters in kilometers
+    //   return res.status(501).send({
+    //     message: "You Are Not In The Right Location.",
+    //   });
+    // }
 
     const time = moment().format("DD-MM-YYYY h:mm A");
     const date = time.split(" ")[0];
@@ -359,6 +380,8 @@ exports.loginAttendanceController = async (req, res) => {
 
     const attandance = {
       date,
+      login: datetime,
+      logout: "",
       loginTime,
       loginImage: `https://drive.google.com/uc?id=${imgId}`,
       task,
@@ -401,7 +424,10 @@ exports.logoutAttendanceController = async (req, res) => {
       return res.status(501).send({ message: "Invalid coordinates" });
     }
 
-    if (isAtOfficeLocation({ latitude, longitude })) {
+    if (
+      req.employee.employee.usertype !== "serviceengineer" &&
+      !isAtOfficeLocation({ latitude, longitude })
+    ) {
       // 50 meters in kilometers
       const time = moment().format("DD-MM-YYYY h:mm A");
       const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
@@ -427,6 +453,7 @@ exports.logoutAttendanceController = async (req, res) => {
 
       const startMoment = moment(attendanceReport.loginTime, format);
       const endMoment = moment(logoutTime, format);
+      const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
 
       if (!startMoment.isValid() || !endMoment.isValid()) {
         return "Invalid Time Format!!";
@@ -453,6 +480,7 @@ exports.logoutAttendanceController = async (req, res) => {
         }
       }
 
+      attendanceReport.logout = datetime;
       attendanceReport.attendanceStatus = false;
       attendanceReport.logoutTime = logoutTime;
       attendanceReport.taskReport = taskReport;
@@ -644,6 +672,177 @@ exports.getUserAttendanceController = async (req, res) => {
       employeeDetails,
       count: employee.attendance.length,
       success: true,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.serviceCheckInController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+    // const { attendanceId } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res
+        .status(501)
+        .send({ message: "We Can't Fetched Location, Please Try Again!!" });
+    }
+
+    const location = await getLocation(latitude, longitude);
+
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    const service = await Employee.findById(id).select("attendance");
+
+    const length = service.attendance.length;
+
+    const checkInService = service.attendance[length - 1];
+
+    const addService = {
+      checkIntime: datetime,
+      checkInlocation: location,
+      checkInlatitude: latitude,
+      checkInlongitude: longitude,
+      checkOuttime: "",
+      checkOutlocation: "",
+      checkOutlatitude: "",
+      checkOutlongitude: "",
+      industryName: "",
+      clientName: "",
+      area: "",
+      time: "",
+      date: "",
+      clientMobile: "",
+      clientEmail: "",
+      workDone: "",
+      serviceAndInstrumentImage: "",
+      serviceReportImage: "",
+      serviceStatus: true,
+    };
+
+    await checkInService.serviceDetails.push(addService);
+
+    await service.save();
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully Check In For Service",
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.serviceCheckOutController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+    // const { attendanceId, serviceId } = req.params;
+
+    const {
+      serviceReportImage,
+      serviceAndInstrumentImage,
+      workDone,
+      clientEmail,
+      clientMobile,
+      area,
+      clientName,
+      industryName,
+    } = req.body;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    // if (!attendanceId || !serviceId) {
+    //   return res.status(501).send({ message: "Wrong ID" });
+    // }
+
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res
+        .status(501)
+        .send({ message: "We Can't Fetched Location, Please Try Again!!" });
+    }
+
+    const location = await getLocation(latitude, longitude);
+
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    const attendances = await Employee.findById(id).select("attendance");
+
+    const length = attendances.attendance.length;
+
+    const Service = attendances.attendance[length - 1];
+
+    const servicelength = Service.serviceDetails.length;
+
+    const serviceReport = Service.serviceDetails[servicelength - 1];
+
+    const serviceData = {
+      checkOuttime: datetime,
+      checkOutlocation: location,
+      checkOutlatitude: latitude,
+      checkOutlongitude: longitude,
+      serviceReportImage,
+      serviceAndInstrumentImage,
+      workDone,
+      clientEmail,
+      clientMobile,
+      area,
+      clientName,
+      industryName,
+    };
+
+    const updatedEmployeeData = {
+      serviceReport: { ...serviceReport, serviceData },
+    };
+
+    // serviceReport.checkOuttime = datetime;
+    // serviceReport.checkOutlocation = location;
+    // serviceReport.checkOutlatitude = latitude;
+    // serviceReport.checkOutlongitude = longitude;
+
+    await attendances.save();
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully Check Out From Service Work",
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getLatestServiceReportController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    const attendances = await Employee.findById(id).select("attendance");
+
+    const length = attendances.attendance.length;
+
+    const Service = attendances.attendance[length - 1];
+
+    const servicelength = Service.serviceDetails.length;
+
+    const serviceReport = Service.serviceDetails[servicelength - 1];
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully Check Out From Service Work",
+      serviceReport,
     });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });

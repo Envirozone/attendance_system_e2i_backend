@@ -68,6 +68,12 @@ const employeeSchema = new mongoose.Schema(
     },
     attendance: [
       {
+        login: {
+          type: String,
+        },
+        logout: {
+          type: String,
+        },
         date: {
           type: String,
         },
@@ -138,6 +144,61 @@ const employeeSchema = new mongoose.Schema(
             },
             time: {
               type: String,
+            },
+          },
+        ],
+        serviceDetails: [
+          {
+            checkIntime: {
+              type: String,
+            },
+            checkInlocation: {
+              type: String,
+            },
+            checkInlatitude: {
+              type: Number,
+            },
+            checkInlongitude: {
+              type: Number,
+            },
+            checkOuttime: {
+              type: String,
+            },
+            checkOutlocation: {
+              type: String,
+            },
+            checkOutlatitude: {
+              type: Number,
+            },
+            checkOutlongitude: {
+              type: Number,
+            },
+            industryName: {
+              type: String,
+            },
+            clientName: {
+              type: String,
+            },
+            area: {
+              type: String,
+            },
+            clientMobile: {
+              type: Number,
+            },
+            clientEmail: {
+              type: String,
+            },
+            workDone: {
+              type: String,
+            },
+            serviceAndInstrumentImage: {
+              type: String,
+            },
+            serviceReportImage: {
+              type: String,
+            },
+            serviceStatus: {
+              type: Boolean,
             },
           },
         ],
