@@ -706,10 +706,71 @@ exports.serviceCheckOutController = async (req, res) => {
   try {
     const id = req.employee.employee._id;
     // const { attendanceId, serviceId } = req.params;
+    const image1 = req.files["image1"][0];
+    const image2 = req.files["image2"][0];
+
+    // Uploading Image on Drive
+    let imgId1;
+    let imgId2;
+
+    // Upload First Image -------------------------------------------
+    const response = await drive.files.create({
+      requestBody: {
+        name: image1.originalname,
+        mimeType: image1.mimetype,
+        // Get From Created Folder URL on Google Drive
+        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
+      },
+      media: {
+        body: fs.createReadStream(image1.path),
+      },
+    });
+
+    // Save additional data to your backend (you can modify this part as needed)
+    const { data: data1 } = response;
+    imgId1 = data1.id;
+
+    // Removing Image From Server (it take call back function)
+    fs.rm(`./uploads/${image1.originalname}`, (err) => {
+      if (!err) {
+        console.log("File deleted successfully");
+      } else {
+        console.error(err);
+      }
+    });
+
+    // Upload First Image -------------------------------------------
+
+    // Upload Second Image -------------------------------------------
+
+    const res = await drive.files.create({
+      requestBody: {
+        name: image2.originalname,
+        mimeType: image2.mimetype,
+        // Get From Created Folder URL on Google Drive
+        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
+      },
+      media: {
+        body: fs.createReadStream(image2.path),
+      },
+    });
+
+    // Save additional data to your backend (you can modify this part as needed)
+    const { data: data2 } = res;
+    imgId2 = data2.id;
+
+    // Removing Image From Server (it take call back function)
+    fs.rm(`./uploads/${image2.originalname}`, (err) => {
+      if (!err) {
+        console.log("File deleted successfully");
+      } else {
+        console.error(err);
+      }
+    });
+
+    // Upload Second Image -------------------------------------------
 
     const {
-      serviceReportImage,
-      serviceAndInstrumentImage,
       workDone,
       clientEmail,
       clientMobile,
@@ -721,10 +782,6 @@ exports.serviceCheckOutController = async (req, res) => {
     if (!id) {
       return res.status(501).send({ message: "Please Login First" });
     }
-
-    // if (!attendanceId || !serviceId) {
-    //   return res.status(501).send({ message: "Wrong ID" });
-    // }
 
     const { latitude, longitude } = req.body;
 
@@ -758,8 +815,8 @@ exports.serviceCheckOutController = async (req, res) => {
     serviceReport.clientMobile = clientMobile;
     serviceReport.clientEmail = clientEmail;
     serviceReport.workDone = workDone;
-    serviceReport.serviceAndInstrumentImage = serviceAndInstrumentImage;
-    serviceReport.serviceReportImage = serviceReportImage;
+    serviceReport.serviceAndInstrumentImage = `https://drive.google.com/uc?id=${imgId1}`;
+    serviceReport.serviceReportImage = `https://drive.google.com/uc?id=${imgId2}`;
     serviceReport.serviceStatus = false;
 
     await attendances.save();

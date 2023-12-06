@@ -8,6 +8,17 @@ const storage = multer.diskStorage({
     cb(null, file.originalname); // Use the original filename for storing the file
   },
 });
+
+// Create a single Multer instance to handle single file inputs
 const upload = multer({ storage });
 
-module.exports = { upload };
+// Create a single Multer instance to handle both file inputs
+const uploads = multer({ storage }).fields([
+  { name: "image1", maxCount: 1 },
+  { name: "image2", maxCount: 1 },
+]);
+
+module.exports = {
+  upload: upload,
+  uploads: uploads,
+};

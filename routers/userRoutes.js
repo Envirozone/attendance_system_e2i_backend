@@ -18,7 +18,8 @@ const {
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
-const { upload } = require("../middlewares/multer.middleware");
+const { upload, uploads } = require("../middlewares/multer.middleware");
+// const { uploads } = require("../middlewares/multer.middleware");
 const userRouter = express.Router();
 
 userRouter.post("/login", userLoginController);
@@ -64,7 +65,12 @@ userRouter.get(
 
 userRouter.post("/service/checkin", isLoggedIn, serviceCheckInController);
 
-userRouter.post("/service/checkout", isLoggedIn, serviceCheckOutController);
+userRouter.post(
+  "/service/checkout",
+  isLoggedIn,
+  uploads,
+  serviceCheckOutController
+);
 
 userRouter.get("/latest/service", isLoggedIn, getLatestServiceReportController);
 
