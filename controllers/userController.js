@@ -743,7 +743,7 @@ exports.serviceCheckOutController = async (req, res) => {
 
     // Upload Second Image -------------------------------------------
 
-    const res = await drive.files.create({
+    const resp = await drive.files.create({
       requestBody: {
         name: image2.originalname,
         mimeType: image2.mimetype,
@@ -756,7 +756,7 @@ exports.serviceCheckOutController = async (req, res) => {
     });
 
     // Save additional data to your backend (you can modify this part as needed)
-    const { data: data2 } = res;
+    const { data: data2 } = resp;
     imgId2 = data2.id;
 
     // Removing Image From Server (it take call back function)
@@ -821,7 +821,7 @@ exports.serviceCheckOutController = async (req, res) => {
 
     await attendances.save();
 
-    res.status(200).send({
+    res.status(200).json({
       success: true,
       message: "Successfully Check Out From Service Work",
     });
