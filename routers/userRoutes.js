@@ -15,6 +15,7 @@ const {
   serviceCheckInController,
   serviceCheckOutController,
   getLatestServiceReportController,
+  getAttendanceDataController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -73,5 +74,7 @@ userRouter.post(
 );
 
 userRouter.get("/latest/service", isLoggedIn, getLatestServiceReportController);
+
+userRouter.get("/get/attendanceData/:attendanceId", isLoggedIn, getAttendanceDataController)
 
 module.exports = userRouter;

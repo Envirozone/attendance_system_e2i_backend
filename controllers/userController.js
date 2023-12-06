@@ -5,6 +5,7 @@ const geolib = require("geolib");
 const path = require("path");
 const fs = require("fs");
 const axios = require("axios");
+const { ObjectId } = require("mongodb");
 
 const { google } = require("googleapis");
 // Your Google Cloud Platform credentials file
@@ -617,11 +618,16 @@ exports.getUserAttendanceController = async (req, res) => {
       return res.status(501).send({ message: "Employee Id Not Found" });
     }
 
-    const employee = await Employee.findById(id).select("attendance -_id");
+    const employee = await Employee.findById(id)
+      .select("attendance -_id")
+      .exec();
 
     if (!employee) {
       return res.status(501).send({ message: "Employee Data Not Found" });
     }
+
+    // Sort the "attendance" array in descending order based on the "login" date
+    employee.attendance.sort((a, b) => new Date(b.login) - new Date(a.login));
 
     const attendance = employee?.attendance;
 
@@ -860,6 +866,49 @@ exports.getLatestServiceReportController = async (req, res) => {
       success: true,
       message: "Successfully Fetched Latest Service Details",
       serviceDetail,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getAttendanceDataController = async (req, res) => {
+  try {
+    const id = req.employee.employee._id;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    const { attendanceId } = req.params;
+
+    const attendance = await Employee.aggregate([
+      {
+        $match: {
+          _id: new ObjectId(id), // Convert the employeeId to ObjectId type
+        },
+      },
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          "attendance._id": new ObjectId(attendanceId), // Replace this with the actual attendance _id
+        },
+      },
+      {
+        $project: {
+          attendance: 1,
+          // "attendance.logoutTime": 1,
+          // "attendance.locations": 1,
+        },
+      },
+    ]);
+
+    res.status(200).send({
+      message: "Fetched Data",
+      success: true,
+      attendance,
     });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
