@@ -1,6 +1,7 @@
 const Employee = require("../models/userModel");
 const path = require("path");
 const fs = require("fs");
+const { ObjectId } = require("mongodb");
 
 const { google } = require("googleapis");
 // Your Google Cloud Platform credentials file
@@ -245,6 +246,39 @@ exports.latestAttendanceByIdController = async (req, res) => {
       success: true,
       latestAttendance,
     });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getAttendanceDataByDateController = async (req, res) => {
+  try {
+    const { id, date } = req.query;
+
+    const attendance = await Employee.aggregate([
+      {
+        $match: {
+          _id: new ObjectId(id),
+        },
+      },
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          "attendance.date": date,
+        },
+      },
+      {
+        $project: {
+          attendance: 1,
+        },
+      },
+    ]);
+
+    res
+      .status(200)
+      .send({ message: "Data Fetched", success: true, attendance });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
