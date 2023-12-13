@@ -9,6 +9,7 @@ const {
   updateAttendanceController,
   latestAttendanceByIdController,
   getAttendanceDataByDateController,
+  getMonthlyAttendanceReportController,
 } = require("../controllers/adminController");
 const { isLoggedIn, isAuthorized } = require("../middlewares/auth.middleware");
 const { upload } = require("../middlewares/multer.middleware");
@@ -60,6 +61,12 @@ adminRouter.get(
   "/getAttendanceDataByDate",
   isLoggedIn,
   getAttendanceDataByDateController
+);
+
+adminRouter.post(
+  "/getMonthlyAttendanceReport/:id",
+  // isLoggedIn,
+  getMonthlyAttendanceReportController
 );
 
 module.exports = adminRouter;

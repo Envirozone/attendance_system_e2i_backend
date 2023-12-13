@@ -66,6 +66,10 @@ const employeeSchema = new mongoose.Schema(
     state: {
       type: String,
     },
+    leaveBalance: {
+      type: Number,
+      default: 0,
+    },
     attendance: [
       {
         login: {

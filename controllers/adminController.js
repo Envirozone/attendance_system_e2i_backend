@@ -2,6 +2,7 @@ const Employee = require("../models/userModel");
 const path = require("path");
 const fs = require("fs");
 const { ObjectId } = require("mongodb");
+const moment = require("moment");
 
 const { google } = require("googleapis");
 // Your Google Cloud Platform credentials file
@@ -279,6 +280,78 @@ exports.getAttendanceDataByDateController = async (req, res) => {
     res
       .status(200)
       .send({ message: "Data Fetched", success: true, attendance });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+exports.getMonthlyAttendanceReportController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { startDate, LastDate, Holidays } = req.body;
+
+    const numberOfDays = moment(LastDate, "YYYY-MM-DD").diff(
+      moment(startDate, "YYYY-MM-DD"),
+      "days"
+    );
+
+    // const report = await Employee.aggregate([
+    //   {
+    //     $match: { _id: new ObjectId(id) },
+    //   },
+    //   {
+    //     $unwind: "$attendance",
+    //   },
+    //   {
+    //     $match: {
+    //       "attendance.date": {
+    //         "attendance.login": {
+    //           $gte: new Date("2023-12-06T00:00:00+05:30"),
+    //           $lt: new Date("2023-12-09T00:00:00+05:30"),
+    //         },
+    //       },
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       attendance: 1,
+    //     },
+    //   },
+    // ]);
+
+    const employee = await Employee.findOne({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    const filteredAttendance = employee.attendance.filter((entry) => {
+      const loginDate = new Date(entry.login);
+      return (
+        loginDate >= new Date(`${startDate}T00:00:00+05:30`) &&
+        loginDate < new Date(`${LastDate}T00:00:00+05:30`)
+      );
+    });
+
+    // employee.leaveBalance =
+    //   employee.leaveBalance -
+    //   numberOfDays -
+    //   filteredAttendance.length -
+    //   Holidays;
+
+    // await employee.save();
+
+    res.status(200).send({
+      success: true,
+      message: "Data Fetched Successfully",
+      filteredAttendance,
+      TotalDayPresent: filteredAttendance.length,
+      TotalDays: numberOfDays,
+      TotalAbsentDayWithoutHoliday: numberOfDays - filteredAttendance.length,
+      TotalAbsentDay: numberOfDays - filteredAttendance.length - Holidays,
+      // leaveBalance: employee.leaveBalance,
+    });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }
