@@ -2,24 +2,16 @@ const Employee = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const moment = require("moment-timezone");
 const geolib = require("geolib");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
+const mime = require("mime-types");
 const axios = require("axios");
 const { ObjectId } = require("mongodb");
-
-const { google } = require("googleapis");
-// Your Google Cloud Platform credentials file
-const auth = require("../auth.json");
 const { getLocation } = require("../middlewares/getLocation.Middleware");
-
-// Google Drive APIs Configuration
-const drive = google.drive({
-  version: "v3",
-  auth: new google.auth.GoogleAuth({
-    credentials: auth,
-    scopes: ["https://www.googleapis.com/auth/drive.file"],
-  }),
-});
+const {
+  uploadImageOnGoogleDrive,
+} = require("../middlewares/googleDrive.middleware");
+const { removeImage } = require("../middlewares/removeImage.middleware");
 
 const officeLocation = {
   latitude: 28.6830441,
@@ -29,7 +21,7 @@ const officeLocation = {
 function isAtOfficeLocation(employeeLocation) {
   const employeeLatitude = +employeeLocation.latitude;
   const employeeLongitude = +employeeLocation.longitude;
-  const accuracyThreshold = 500000;
+  const accuracyThreshold = 50000;
   const distance = geolib.getDistance(
     { latitude: employeeLatitude, longitude: employeeLongitude },
     officeLocation
@@ -244,19 +236,13 @@ exports.updateUserProfileController = async (req, res) => {
 exports.loginAttendanceController = async (req, res) => {
   try {
     // Access the uploaded image
-    const loginImage = req.file;
+    const image = req.file;
     const id = req.employee.employee._id;
     const { task, latitude, longitude } = req.body;
     const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
-    if (!loginImage) {
+    if (!image) {
       // Removing Image From Server (it take call back function)
-      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-        if (!err) {
-          console.log("File deleted successfully");
-        } else {
-          console.error(err);
-        }
-      });
+      await removeImage(image);
 
       return res
         .status(501)
@@ -265,13 +251,7 @@ exports.loginAttendanceController = async (req, res) => {
 
     if (!latitude || !longitude) {
       // Removing Image From Server (it take call back function)
-      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-        if (!err) {
-          console.log("File deleted successfully");
-        } else {
-          console.error(err);
-        }
-      });
+      await removeImage(image);
 
       return res.status(501).send({ message: "Invalid coordinates" });
     }
@@ -281,35 +261,13 @@ exports.loginAttendanceController = async (req, res) => {
       !isAtOfficeLocation({ latitude, longitude })
     ) {
       // Removing Image From Server (it take call back function)
-      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-        if (!err) {
-          console.log("File deleted successfully");
-        } else {
-          console.error(err);
-        }
-      });
+      await removeImage(image);
 
       // 50 meters in kilometers
       return res.status(501).send({
         message: "You Are Not In The Right Location.",
       });
     }
-
-    // if (!isAtOfficeLocation({ latitude, longitude })) {
-    //   // Removing Image From Server (it take call back function)
-    //   fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-    //     if (!err) {
-    //       console.log("File deleted successfully");
-    //     } else {
-    //       console.error(err);
-    //     }
-    //   });
-
-    //   // 50 meters in kilometers
-    //   return res.status(501).send({
-    //     message: "You Are Not In The Right Location.",
-    //   });
-    // }
 
     const time = moment().format("DD-MM-YYYY h:mm A");
     const date = time.split(" ")[0];
@@ -319,49 +277,16 @@ exports.loginAttendanceController = async (req, res) => {
 
     if (!employee) {
       // Removing Image From Server (it take call back function)
-      fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-        if (!err) {
-          console.log("File deleted successfully");
-        } else {
-          console.error(err);
-        }
-      });
+      await removeImage(image);
 
       return res.status(501).send({ message: "Employee Not Found" });
     }
 
     // Uploading Image on Drive
-    let imgId;
-
-    const response = await drive.files.create({
-      requestBody: {
-        name: req.file.originalname,
-        mimeType: req.file.mimetype,
-        // Get From Created Folder URL on Google Drive
-        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
-      },
-      media: {
-        body: fs.createReadStream(req.file.path),
-      },
-    });
-
-    // Save additional data to your backend (you can modify this part as needed)
-    const { data } = response;
-    imgId = data.id;
-    const imageData = {
-      fileName: data.name,
-      fileId: data.id,
-      // Add more data fields if needed
-    };
+    const imgId = await uploadImageOnGoogleDrive(image);
 
     // Removing Image From Server (it take call back function)
-    fs.rm(`./uploads/${req.file.originalname}`, (err) => {
-      if (!err) {
-        console.log("File deleted successfully");
-      } else {
-        console.error(err);
-      }
-    });
+    await removeImage(image);
 
     //  Getting Location Info By latitude and longitude by Open Cage APIs
     const locationName = await getLocation(latitude, longitude);
@@ -539,7 +464,6 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
     }
 
     const leng = employee?.attendance.length;
-    console.log(leng);
 
     if (employee.attendance[leng - 1].attendanceStatus == true) {
       //  Getting Location Info By latitude and longitude by Open Cage APIs
@@ -554,7 +478,7 @@ exports.getUserCordinatesOnInterval = async (req, res) => {
 
       employee.attendance.slice(-1)[0].locations.push(locationInfo);
 
-      employee.save();
+      await employee.save();
 
       res.status(200).send({
         message: "Location Fetched On Interval",
@@ -715,64 +639,15 @@ exports.serviceCheckOutController = async (req, res) => {
     const image1 = req.files["image1"][0];
     const image2 = req.files["image2"][0];
 
-    // Uploading Image on Drive
-    let imgId1;
-    let imgId2;
+    // Uploading Image On Google Drive And Removing Image From Server (it take call back function)
+    const imgId1 = await uploadImageOnGoogleDrive(image1);
 
-    // Upload First Image -------------------------------------------
-    const response = await drive.files.create({
-      requestBody: {
-        name: image1.originalname,
-        mimeType: image1.mimetype,
-        // Get From Created Folder URL on Google Drive
-        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
-      },
-      media: {
-        body: fs.createReadStream(image1.path),
-      },
-    });
+    await removeImage(image1);
 
-    // Save additional data to your backend (you can modify this part as needed)
-    const { data: data1 } = response;
-    imgId1 = data1.id;
+    const imgId2 = await uploadImageOnGoogleDrive(image2);
 
     // Removing Image From Server (it take call back function)
-    fs.rm(`./uploads/${image1.originalname}`, (err) => {
-      if (!err) {
-        console.log("File deleted successfully");
-      } else {
-        console.error(err);
-      }
-    });
-
-    // Upload First Image -------------------------------------------
-
-    // Upload Second Image -------------------------------------------
-
-    const resp = await drive.files.create({
-      requestBody: {
-        name: image2.originalname,
-        mimeType: image2.mimetype,
-        // Get From Created Folder URL on Google Drive
-        parents: ["1saKmG_cZnsWUBNiST6QtmVOvQnrgSD84"],
-      },
-      media: {
-        body: fs.createReadStream(image2.path),
-      },
-    });
-
-    // Save additional data to your backend (you can modify this part as needed)
-    const { data: data2 } = resp;
-    imgId2 = data2.id;
-
-    // Removing Image From Server (it take call back function)
-    fs.rm(`./uploads/${image2.originalname}`, (err) => {
-      if (!err) {
-        console.log("File deleted successfully");
-      } else {
-        console.error(err);
-      }
-    });
+    await removeImage(image2);
 
     // Upload Second Image -------------------------------------------
 
@@ -786,12 +661,20 @@ exports.serviceCheckOutController = async (req, res) => {
     } = req.body;
 
     if (!id) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image1);
+      await removeImage(image2);
+
       return res.status(501).send({ message: "Please Login First" });
     }
 
     const { latitude, longitude } = req.body;
 
     if (!latitude || !longitude) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image1);
+      await removeImage(image2);
+
       return res
         .status(501)
         .send({ message: "We Can't Fetched Location, Please Try Again!!" });
@@ -909,6 +792,432 @@ exports.getAttendanceDataController = async (req, res) => {
       message: "Fetched Data",
       success: true,
       attendance,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Mobile Version API
+// Attendance Login
+exports.loginAttendanceByPhoneController = async (req, res) => {
+  try {
+    const image = req.file;
+    const { task, latitude, longitude, charge } = req.body;
+    const { id } = req.params;
+
+    // Check Is Image Uploaded
+    if (!image) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image);
+
+      return res
+        .status(501)
+        .send({ message: "Please Click Your Picture First!" });
+    }
+
+    if (!latitude || !longitude) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image);
+
+      return res.status(501).send({ message: "Invalid coordinates" });
+    }
+
+    const employee = await Employee.findById({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image);
+
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    if (
+      employee?.usertype !== "serviceengineer" &&
+      !isAtOfficeLocation({ latitude, longitude })
+    ) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image);
+
+      // 50 meters in kilometers
+      return res.status(501).send({
+        message: "You Are Not In The Right Location.",
+      });
+    }
+
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const date = time.split(" ")[0];
+    const loginTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    const imgId = await uploadImageOnGoogleDrive(image);
+
+    // Removing Image From Server (it take call back function)
+    await removeImage(image);
+
+    //  Getting Location Info By latitude and longitude by Open Cage APIs
+    const locationName = await getLocation(latitude, longitude);
+
+    const attandance = {
+      date,
+      login: datetime,
+      logout: "",
+      loginTime,
+      loginImage: `https://drive.google.com/uc?id=${imgId}`,
+      task,
+      attendanceStatus: true,
+      taskReport: "",
+      workHours: "",
+      logoutTime: "",
+      attendanceType: "updateonlogout",
+      loginLocation: {
+        latitude: latitude,
+        longitude: longitude,
+        locationName: locationName,
+        time: loginTime,
+        charge: charge,
+      },
+    };
+
+    await employee.attendance.push(attandance);
+
+    await employee.save();
+
+    res.status(200).send({
+      message: "You Login Successfully, With Right Location!",
+      attandance,
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Get Live Location
+exports.getUserLiveCordinates = async (req, res) => {
+  try {
+    const { id } = req?.params;
+    const { latitude, longitude, internetStatus, gpsStatus } = req.body;
+    console.log(internetStatus, gpsStatus);
+    console.log(typeof internetStatus);
+
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const IntervalTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    if (!latitude || !longitude) {
+      return res
+        .status(501)
+        .send({ message: "Employee Denied Access Location" });
+    }
+
+    const employee = await Employee.findById({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    const leng = employee?.attendance.length;
+
+    if (employee.attendance[leng - 1].attendanceStatus == true) {
+      //  Getting Location Info By latitude and longitude by Open Cage APIs
+      let locationName = await getLocation(latitude, longitude);
+
+      const locationInfo = {
+        latitude: latitude,
+        longitude: longitude,
+        locationName: locationName,
+        time: IntervalTime,
+        internetStatus: internetStatus ? "Online" : "Offline",
+        gpsStatus: gpsStatus ? "Active" : "Inactive",
+      };
+
+      employee.attendance.slice(-1)[0].locations.push(locationInfo);
+
+      await employee.save();
+
+      res.status(200).send({
+        message: "Location Fetched On Interval",
+        success: true,
+      });
+    } else {
+      return res.status(501).send({ message: "Employee Logout" });
+    }
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Attendance Logout
+exports.logoutAttendanceByPhoneController = async (req, res) => {
+  try {
+    // const id = req.params;
+
+    const { id, attendaceId } = req.params;
+
+    const { taskReport, latitude, longitude, charge } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(501).send({ message: "Invalid coordinates" });
+    }
+
+    const employee = await Employee.findById({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    if (
+      employee?.usertype !== "serviceengineer" &&
+      !isAtOfficeLocation({ latitude, longitude })
+    ) {
+      // 50 meters in kilometers
+      return res.status(501).send({
+        message: "You Are Not In The Right Location.",
+      });
+    }
+
+    // 50 meters in kilometers
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const logoutTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    const attendanceReport = employee.attendance.find(
+      (record) => record._id.toString() === attendaceId.toString()
+    );
+
+    if (!attendanceReport) {
+      return res
+        .status(501)
+        .send({ message: "You Are Not Login, First Login!!" });
+    }
+
+    // Calculating Working Hours
+    const format = "hh:mm A";
+
+    const startMoment = moment(attendanceReport.loginTime, format);
+    const endMoment = moment(logoutTime, format);
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    if (!startMoment.isValid() || !endMoment.isValid()) {
+      return "Invalid Time Format!!";
+    }
+
+    const duration = moment.duration(endMoment.diff(startMoment));
+
+    const hours = Math.floor(duration.asHours());
+    const minutes = Math.floor(duration.asMinutes()) % 60;
+
+    //  Getting Location Info By latitude and longitude by Open Cage APIs
+    let locationName = await getLocation(latitude, longitude);
+
+    attendanceReport.logout = datetime;
+    attendanceReport.attendanceStatus = false;
+    attendanceReport.logoutTime = logoutTime;
+    attendanceReport.taskReport = taskReport;
+    attendanceReport.workHours = `${hours}:${minutes} Hours`;
+    attendanceReport.logoutLocation.latitude = latitude;
+    attendanceReport.logoutLocation.longitude = longitude;
+    attendanceReport.logoutLocation.time = logoutTime;
+    attendanceReport.logoutLocation.charge = charge;
+    attendanceReport.logoutLocation.locationName = locationName;
+    if (hours >= 7) {
+      attendanceReport.attendanceType = "fullday";
+    } else if (hours >= 4) {
+      attendanceReport.attendanceType = "shortday";
+    } else {
+      attendanceReport.attendanceType = "halfday";
+    }
+
+    await employee.save();
+
+    res
+      .status(200)
+      .send({ message: "You Logout Successfully, With Correct Location!" });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Get Latest Attendance
+exports.latestAttendanceByPhoneController = async (req, res) => {
+  try {
+    const id = req.params;
+
+    const employee = await Employee.findById({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Data Not Found" });
+    }
+
+    if (employee.attendance.length === 0) {
+      return res.status(200).send({
+        message: "Latest Attendance Status Updated",
+        success: true,
+        latestAttendance: {},
+      });
+    }
+
+    const latestAttendance = employee.attendance.slice(-1)[0];
+
+    res.status(200).send({
+      message: "Latest Attendance Status Updated",
+      success: true,
+      latestAttendance,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Service Check In
+exports.serviceCheckInByPhoneController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // const { attendanceId } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    const { latitude, longitude, checkInCharge } = req.body;
+    console.log(latitude, longitude);
+
+    if (!latitude || !longitude) {
+      return res
+        .status(501)
+        .send({ message: "We Can't Fetched Location, Please Try Again!!" });
+    }
+
+    const location = await getLocation(latitude, longitude);
+
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    const service = await Employee.findById(id).select("attendance");
+
+    const length = service.attendance.length;
+
+    const checkInService = service.attendance[length - 1];
+
+    const addService = {
+      checkIntime: datetime,
+      checkInlocation: location,
+      checkInlatitude: latitude,
+      checkInlongitude: longitude,
+      checkInCharge: checkInCharge,
+      checkOutCharge: "",
+      checkOuttime: "",
+      checkOutlocation: "",
+      checkOutlatitude: "",
+      checkOutlongitude: "",
+      industryName: "",
+      clientName: "",
+      area: "",
+      time: "",
+      date: "",
+      clientMobile: "",
+      clientEmail: "",
+      workDone: "",
+      serviceAndInstrumentImage: "",
+      serviceReportImage: "",
+      serviceStatus: true,
+    };
+
+    await checkInService.serviceDetails.push(addService);
+
+    await service.save();
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully Check In For Service",
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Service Check Out
+exports.serviceCheckOutByPhoneController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const image1 = req.files["image1"][0];
+    const image2 = req.files["image2"][0];
+    console.log("1", image1);
+    console.log("2", image2);
+
+    const {
+      work,
+      clientEmail,
+      clientMobileNumber,
+      serviceArea,
+      clientName,
+      industryName,
+      latitude,
+      longitude,
+      checkOutCharge,
+    } = req.body;
+
+    if (!id) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image1);
+      await removeImage(image2);
+
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    if (!latitude || !longitude) {
+      // Removing Image From Server (it take call back function)
+      await removeImage(image1);
+      await removeImage(image2);
+
+      return res
+        .status(501)
+        .send({ message: "We Can't Fetched Location, Please Try Again!!" });
+    }
+
+    const location = await getLocation(latitude, longitude);
+
+    const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
+
+    // Uploading Image On Google Drive
+    const imgId1 = await uploadImageOnGoogleDrive(image1);
+
+    await removeImage(image1);
+
+    const imgId2 = await uploadImageOnGoogleDrive(image2);
+
+    await removeImage(image2);
+
+    const attendances = await Employee.findById(id).select("attendance");
+
+    const length = attendances.attendance.length;
+
+    const Service = attendances.attendance[length - 1];
+
+    const servicelength = Service.serviceDetails.length;
+
+    const serviceReport = Service.serviceDetails[servicelength - 1];
+
+    serviceReport.checkOuttime = datetime;
+    serviceReport.checkOutCharge = checkOutCharge;
+    serviceReport.checkOutlocation = location;
+    serviceReport.checkOutlatitude = latitude;
+    serviceReport.checkOutlongitude = longitude;
+    serviceReport.industryName = industryName;
+    serviceReport.clientName = clientName;
+    serviceReport.area = serviceArea;
+    serviceReport.clientMobile = clientMobileNumber;
+    serviceReport.clientEmail = clientEmail;
+    serviceReport.workDone = work;
+    serviceReport.serviceAndInstrumentImage = `https://drive.google.com/uc?id=${imgId1}`;
+    serviceReport.serviceReportImage = `https://drive.google.com/uc?id=${imgId2}`;
+    serviceReport.serviceStatus = false;
+
+    await attendances.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully Check Out From Service Work",
     });
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });

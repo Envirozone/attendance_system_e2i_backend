@@ -16,6 +16,12 @@ const {
   serviceCheckOutController,
   getLatestServiceReportController,
   getAttendanceDataController,
+  loginAttendanceByPhoneController,
+  getUserLiveCordinates,
+  logoutAttendanceByPhoneController,
+  latestAttendanceByPhoneController,
+  serviceCheckInByPhoneController,
+  serviceCheckOutByPhoneController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -39,6 +45,33 @@ userRouter.post(
   upload.single("loginImage"),
   loginAttendanceController
 );
+// ---------------- Phone Routes ---------------------
+userRouter.post(
+  "/attendanceLogin/byPhone/:id",
+  upload.single("image"),
+  loginAttendanceByPhoneController
+);
+
+userRouter.post("/userLiveCordinates/byPhone/:id", getUserLiveCordinates);
+
+userRouter.patch(
+  "/attendanceLogout/byPhone/:id/:attendaceId",
+  logoutAttendanceByPhoneController
+);
+
+userRouter.get(
+  "/latestAttendanceByPhone/:id",
+  latestAttendanceByPhoneController
+);
+
+userRouter.post("/service/checkinByPhone/:id", serviceCheckInByPhoneController);
+
+userRouter.post(
+  "/service/checkoutByPhone/:id",
+  uploads,
+  serviceCheckOutByPhoneController
+);
+// ---------------- Phone Routes ---------------------
 userRouter.patch(
   "/attendanceLogout/:attendaceId",
   isLoggedIn,
@@ -75,6 +108,10 @@ userRouter.post(
 
 userRouter.get("/latest/service", isLoggedIn, getLatestServiceReportController);
 
-userRouter.get("/get/attendanceData/:attendanceId", isLoggedIn, getAttendanceDataController)
+userRouter.get(
+  "/get/attendanceData/:attendanceId",
+  isLoggedIn,
+  getAttendanceDataController
+);
 
 module.exports = userRouter;

@@ -120,6 +120,9 @@ const employeeSchema = new mongoose.Schema(
           time: {
             type: String,
           },
+          charge: {
+            type: Number,
+          },
         },
         logoutLocation: {
           latitude: {
@@ -133,6 +136,9 @@ const employeeSchema = new mongoose.Schema(
           },
           time: {
             type: String,
+          },
+          charge: {
+            type: Number,
           },
         },
         locations: [
@@ -149,12 +155,21 @@ const employeeSchema = new mongoose.Schema(
             time: {
               type: String,
             },
+            internetStatus: {
+              type: String,
+            },
+            gpsStatus: {
+              type: String,
+            },
           },
         ],
         serviceDetails: [
           {
             checkIntime: {
               type: String,
+            },
+            checkInCharge: {
+              type: Number,
             },
             checkInlocation: {
               type: String,
@@ -167,6 +182,9 @@ const employeeSchema = new mongoose.Schema(
             },
             checkOuttime: {
               type: String,
+            },
+            checkOutCharge: {
+              type: Number,
             },
             checkOutlocation: {
               type: String,
