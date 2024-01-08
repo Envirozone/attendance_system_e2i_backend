@@ -107,6 +107,16 @@ const employeeSchema = new mongoose.Schema(
         taskReport: {
           type: String,
         },
+        internet: [
+          {
+            internetOffTime: {
+              type: String,
+            },
+            internetOnTime: {
+              type: String,
+            },
+          },
+        ],
         loginLocation: {
           latitude: {
             type: Number,
@@ -153,9 +163,6 @@ const employeeSchema = new mongoose.Schema(
               type: String,
             },
             time: {
-              type: String,
-            },
-            internetStatus: {
               type: String,
             },
             gpsStatus: {
@@ -221,6 +228,12 @@ const employeeSchema = new mongoose.Schema(
             },
             serviceStatus: {
               type: Boolean,
+            },
+            checkInTimeOnly: {
+              type: String,
+            },
+            checkOutTimeOnly: {
+              type: String,
             },
           },
         ],

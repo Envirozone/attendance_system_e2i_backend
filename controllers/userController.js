@@ -12,6 +12,7 @@ const {
   uploadImageOnGoogleDrive,
 } = require("../middlewares/googleDrive.middleware");
 const { removeImage } = require("../middlewares/removeImage.middleware");
+const moments = require("moment");
 
 const officeLocation = {
   latitude: 28.6830441,
@@ -29,6 +30,13 @@ function isAtOfficeLocation(employeeLocation) {
   console.log("distance", distance);
   return distance <= accuracyThreshold;
 }
+
+const filterNonNullData = (locationArray) => {
+  const newArray = locationArray?.filter(
+    (item) => item?.latitude != null && item?.longitude != null
+  );
+  return newArray;
+};
 
 exports.userLoginController = async (req, res) => {
   try {
@@ -390,7 +398,7 @@ exports.logoutAttendanceController = async (req, res) => {
     attendanceReport.attendanceStatus = false;
     attendanceReport.logoutTime = logoutTime;
     attendanceReport.taskReport = taskReport;
-    attendanceReport.workHours = `${hours}:${minutes} Hours`;
+    attendanceReport.workHours = `${hours}:${minutes}`;
     attendanceReport.logoutLocation.latitude = latitude;
     attendanceReport.logoutLocation.longitude = longitude;
     attendanceReport.logoutLocation.time = logoutTime;
@@ -591,6 +599,9 @@ exports.serviceCheckInController = async (req, res) => {
 
     const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
 
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const checkInTimeOnly = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
     const service = await Employee.findById(id).select("attendance");
 
     const length = service.attendance.length;
@@ -602,6 +613,8 @@ exports.serviceCheckInController = async (req, res) => {
       checkInlocation: location,
       checkInlatitude: latitude,
       checkInlongitude: longitude,
+      checkInTimeOnly: checkInTimeOnly,
+      checkOutTimeOnly: "",
       checkOuttime: "",
       checkOutlocation: "",
       checkOutlatitude: "",
@@ -684,6 +697,9 @@ exports.serviceCheckOutController = async (req, res) => {
 
     const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
 
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const CheckOutTimeOnly = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
     const attendances = await Employee.findById(id).select("attendance");
 
     const length = attendances.attendance.length;
@@ -704,6 +720,7 @@ exports.serviceCheckOutController = async (req, res) => {
     serviceReport.clientMobile = clientMobile;
     serviceReport.clientEmail = clientEmail;
     serviceReport.workDone = workDone;
+    serviceReport.checkOutTimeOnly = CheckOutTimeOnly;
     serviceReport.serviceAndInstrumentImage = `https://drive.google.com/uc?id=${imgId1}`;
     serviceReport.serviceReportImage = `https://drive.google.com/uc?id=${imgId2}`;
     serviceReport.serviceStatus = false;
@@ -898,18 +915,10 @@ exports.loginAttendanceByPhoneController = async (req, res) => {
 exports.getUserLiveCordinates = async (req, res) => {
   try {
     const { id } = req?.params;
-    const { latitude, longitude, internetStatus, gpsStatus } = req.body;
-    console.log(internetStatus, gpsStatus);
-    console.log(typeof internetStatus);
+    const { latitude, longitude, gpsStatus } = req.body;
 
     const time = moment().format("DD-MM-YYYY h:mm A");
     const IntervalTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
-
-    if (!latitude || !longitude) {
-      return res
-        .status(501)
-        .send({ message: "Employee Denied Access Location" });
-    }
 
     const employee = await Employee.findById({ _id: new ObjectId(id) });
 
@@ -928,7 +937,6 @@ exports.getUserLiveCordinates = async (req, res) => {
         longitude: longitude,
         locationName: locationName,
         time: IntervalTime,
-        internetStatus: internetStatus ? "Online" : "Offline",
         gpsStatus: gpsStatus ? "Active" : "Inactive",
       };
 
@@ -1014,7 +1022,7 @@ exports.logoutAttendanceByPhoneController = async (req, res) => {
     attendanceReport.attendanceStatus = false;
     attendanceReport.logoutTime = logoutTime;
     attendanceReport.taskReport = taskReport;
-    attendanceReport.workHours = `${hours}:${minutes} Hours`;
+    attendanceReport.workHours = `${hours}:${minutes}`;
     attendanceReport.logoutLocation.latitude = latitude;
     attendanceReport.logoutLocation.longitude = longitude;
     attendanceReport.logoutLocation.time = logoutTime;
@@ -1088,6 +1096,9 @@ exports.serviceCheckInByPhoneController = async (req, res) => {
         .send({ message: "We Can't Fetched Location, Please Try Again!!" });
     }
 
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const checkInTimeOnly = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
     const location = await getLocation(latitude, longitude);
 
     const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
@@ -1104,6 +1115,8 @@ exports.serviceCheckInByPhoneController = async (req, res) => {
       checkInlatitude: latitude,
       checkInlongitude: longitude,
       checkInCharge: checkInCharge,
+      checkInTimeOnly: checkInTimeOnly,
+      checkOutTimeOnly: "",
       checkOutCharge: "",
       checkOuttime: "",
       checkOutlocation: "",
@@ -1179,6 +1192,9 @@ exports.serviceCheckOutByPhoneController = async (req, res) => {
 
     const datetime = moment.tz(Date.now(), "Asia/Kolkata").format();
 
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const CheckOutTimeOnly = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
     // Uploading Image On Google Drive
     const imgId1 = await uploadImageOnGoogleDrive(image1);
 
@@ -1209,6 +1225,7 @@ exports.serviceCheckOutByPhoneController = async (req, res) => {
     serviceReport.clientMobile = clientMobileNumber;
     serviceReport.clientEmail = clientEmail;
     serviceReport.workDone = work;
+    serviceReport.checkOutTimeOnly = CheckOutTimeOnly;
     serviceReport.serviceAndInstrumentImage = `https://drive.google.com/uc?id=${imgId1}`;
     serviceReport.serviceReportImage = `https://drive.google.com/uc?id=${imgId2}`;
     serviceReport.serviceStatus = false;
@@ -1219,6 +1236,436 @@ exports.serviceCheckOutByPhoneController = async (req, res) => {
       success: true,
       message: "Successfully Check Out From Service Work",
     });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// get User Summarized Attendance Data
+exports.getUserSummarizedAttendanceDataController = async (req, res) => {
+  try {
+    const { id, date } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    if (!date) {
+      return res.status(501).send({ message: "Please First Select Any Date" });
+    }
+
+    const formattedDate = moment(date).format("DD-MM-YYYY");
+
+    const attendanceData = await Employee.aggregate([
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          _id: new ObjectId(id),
+          "attendance.date": formattedDate,
+        },
+      },
+      {
+        $project: {
+          attendance: "$attendance",
+        },
+      },
+    ]);
+
+    if (!attendanceData) {
+      return res.status(501).send({ message: "No User Found With This Id" });
+    }
+
+    let FinalSortedLocationsList = [];
+    const locationsArray = attendanceData[0]?.attendance?.locations;
+    const FilterLocations = filterNonNullData(locationsArray);
+    const length = FilterLocations?.length || 0;
+
+    let distance1 = 0;
+
+    if (
+      attendanceData[0]?.attendance?.loginLocation?.latitude &&
+      attendanceData[0]?.attendance?.loginLocation?.longitude &&
+      FilterLocations.length > 0
+    ) {
+      distance1 = await geolib.getDistance(
+        {
+          latitude: attendanceData[0]?.attendance?.loginLocation?.latitude,
+          longitude: attendanceData[0]?.attendance?.loginLocation?.longitude,
+        },
+        {
+          latitude: FilterLocations[0]?.latitude,
+          longitude: FilterLocations[0]?.longitude,
+        }
+      );
+    }
+
+    let totalDistance = 0;
+    for (let i = 1; i < FilterLocations?.length - 2; i++) {
+      if (FilterLocations.length > 0) {
+        const distance = await geolib.getDistance(
+          {
+            latitude: FilterLocations[i]?.latitude,
+            longitude: FilterLocations[i]?.longitude,
+          },
+          {
+            latitude: FilterLocations[i + 1]?.latitude,
+            longitude: FilterLocations[i + 1]?.longitude,
+          }
+        );
+        totalDistance = totalDistance + distance;
+      }
+    }
+
+    let distance2 = 0;
+    if (
+      attendanceData[0]?.attendance?.logoutLocation?.latitude &&
+      attendanceData[0]?.attendance?.logoutLocation?.longitude &&
+      FilterLocations.length > 0
+    ) {
+      distance2 = await geolib.getDistance(
+        {
+          latitude: FilterLocations[length - 1]?.latitude,
+          longitude: FilterLocations[length - 1]?.longitude,
+        },
+        {
+          latitude: attendanceData[0]?.attendance?.logoutLocation?.latitude,
+          longitude: attendanceData[0]?.attendance?.logoutLocation?.longitude,
+        }
+      );
+    }
+
+    const TotalLocationDistanceCovered = distance1 + totalDistance + distance2;
+
+    const totalDistanceInKilometer = TotalLocationDistanceCovered / 1000;
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully Get User Summarized Attendance Data",
+      duration: attendanceData[0]?.attendance?.workHours,
+      distance: totalDistanceInKilometer?.toFixed(2),
+      checkIns: attendanceData[0]?.attendance?.serviceDetails?.length,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Get User Login and Logout Attendance Info
+exports.getUserLoginAndLogoutAttendanceInfoController = async (req, res) => {
+  try {
+    const { id, date } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    if (!date) {
+      return res.status(501).send({ message: "Please First Select Any Date" });
+    }
+
+    const formattedDate = moment(date).format("DD-MM-YYYY");
+
+    const attendanceData = await Employee.aggregate([
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          _id: new ObjectId(id),
+          "attendance.date": formattedDate,
+        },
+      },
+      {
+        $project: {
+          attendance: "$attendance",
+        },
+      },
+    ]);
+
+    if (!attendanceData) {
+      return res.status(501).send({ message: "No User Found With This Id" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully Get User Login and Logout Attendance Data",
+      LoginData: attendanceData[0]?.attendance?.loginLocation,
+      LogoutData: attendanceData[0]?.attendance?.logoutLocation,
+      task: attendanceData[0]?.attendance?.task,
+      taskReport: attendanceData[0]?.attendance?.taskReport,
+      loginImage: attendanceData[0]?.attendance?.loginImage,
+      serviceDetails: attendanceData[0]?.attendance?.serviceDetails,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Get User Waiting Time While He Stand One Place
+exports.getUserWaitingAttendanceTimeController = async (req, res) => {
+  try {
+    const { id, date } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    if (!date) {
+      return res.status(501).send({ message: "Please First Select Any Date" });
+    }
+
+    const formattedDate = moment(date).format("DD-MM-YYYY");
+
+    const attendanceData = await Employee.aggregate([
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          _id: new ObjectId(id),
+          "attendance.date": formattedDate,
+        },
+      },
+      {
+        $project: {
+          attendance: "$attendance",
+        },
+      },
+    ]);
+
+    if (!attendanceData) {
+      return res.status(501).send({ message: "No User Found With This Id" });
+    }
+
+    const locations = attendanceData[0]?.attendance?.locations;
+    const FilterLocations = filterNonNullData(locations);
+
+    // Fetching User Waiting Time at One Place
+    let resultOfWaitingTime = [];
+    let currentSubarray = [];
+
+    for (let i = 0; i < FilterLocations.length - 1; i++) {
+      const distance = geolib.getDistance(
+        {
+          latitude: FilterLocations[i]?.latitude,
+          longitude: FilterLocations[i]?.longitude,
+        },
+        {
+          latitude: FilterLocations[i + 1]?.latitude,
+          longitude: FilterLocations[i + 1]?.longitude,
+        }
+      );
+      if (distance > 1000) {
+        currentSubarray.push(FilterLocations[i]);
+      } else if (currentSubarray.length > 0) {
+        resultOfWaitingTime.push(currentSubarray);
+        currentSubarray = [];
+      }
+    }
+
+    const finalWaitingTimeArray = [];
+
+    if (resultOfWaitingTime.length > 0) {
+      // return res.send(resultOfWaitingTime);
+      for (let i = 0; i < resultOfWaitingTime.length; i++) {
+        // Calculating Working Hours
+        const format = "hh:mm A";
+
+        const startMoment = moment(resultOfWaitingTime[i][0].time, format);
+        const endMoment = moment(
+          resultOfWaitingTime[i][resultOfWaitingTime[i].length - 1].time,
+          format
+        );
+
+        const duration = moment.duration(endMoment.diff(startMoment));
+
+        const hours = Math.floor(duration.asHours());
+        const minutes = Math.floor(duration.asMinutes()) % 60;
+
+        const obj = {
+          time: resultOfWaitingTime[i][0].time,
+          location: resultOfWaitingTime[i][0].locationName,
+          waitingTime: `${hours}:${minutes}`,
+        };
+        finalWaitingTimeArray.push(obj);
+      }
+    } else {
+      finalWaitingTimeArray.push({
+        time: attendanceData[0]?.attendance?.loginLocation?.time,
+        location: attendanceData[0]?.attendance?.loginLocation?.locationName,
+        waitingTime: attendanceData[0]?.attendance?.workHours,
+      });
+    }
+
+    // Fetching User Location | GPS Status Change
+    let resultOfGPSStatus = [];
+    let currentSubarrayGPS = [];
+
+    for (let i = 0; i < locations.length - 1; i++) {
+      if (locations[i]?.gpsStatus == "Inactive") {
+        currentSubarrayGPS.push(locations[i]);
+      } else if (currentSubarrayGPS.length > 0) {
+        resultOfGPSStatus.push(currentSubarrayGPS);
+        currentSubarrayGPS = [];
+      }
+    }
+
+    console.log(resultOfGPSStatus);
+
+    let finalGPSStatusArray = [];
+
+    if (resultOfGPSStatus.length > 0) {
+      for (let i = 0; i < resultOfGPSStatus.length; i++) {
+        // Calculating Working Hours
+        const format = "hh:mm A";
+
+        const startMoment = moment(resultOfGPSStatus[i][0].time, format);
+        const endMoment = moment(
+          resultOfGPSStatus[i][resultOfGPSStatus[i].length - 1].time,
+          format
+        );
+
+        const duration = moment.duration(endMoment.diff(startMoment));
+
+        const hours = Math.floor(duration.asHours());
+        const minutes = Math.floor(duration.asMinutes()) % 60;
+
+        const obj = {
+          time: resultOfGPSStatus[i][0].time,
+          location: resultOfGPSStatus[i][0].locationName,
+          waitingTime: `${hours}:${minutes}`,
+        };
+        finalGPSStatusArray.push(obj);
+      }
+    } else {
+      finalGPSStatusArray = [];
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully Get User Login and Logout Attendance Data",
+      finalWaitingTimeArray,
+      finalGPSStatusArray,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+
+// Get User Waiting Time While Internet Off
+exports.getUserInternetOnOffStatusController = async (req, res) => {
+  try {
+    const { id, date } = req.params;
+
+    if (!id) {
+      return res.status(501).send({ message: "Please Login First" });
+    }
+
+    if (!date) {
+      return res.status(501).send({ message: "Please First Select Any Date" });
+    }
+
+    const formattedDate = moment(date).format("DD-MM-YYYY");
+
+    const attendanceData = await Employee.aggregate([
+      {
+        $unwind: "$attendance",
+      },
+      {
+        $match: {
+          _id: new ObjectId(id),
+          "attendance.date": formattedDate,
+        },
+      },
+      {
+        $project: {
+          attendance: "$attendance",
+        },
+      },
+    ]);
+
+    if (!attendanceData) {
+      return res.status(501).send({ message: "No User Found With This Id" });
+    }
+
+    const Internets = attendanceData[0]?.attendance?.internet;
+
+    let InternetStatusArray = [];
+
+    if (Internets.length > 0) {
+      for (let i = 0; i < Internets.length; i++) {
+        // Calculating Working Hours
+        const format = "hh:mm A";
+
+        const startMoment = moment(Internets[i].internetOffTime, format);
+        const endMoment = moment(Internets[i].internetOnTime, format);
+
+        const duration = moment.duration(endMoment.diff(startMoment));
+
+        const hours = Math.floor(duration.asHours());
+        const minutes = Math.floor(duration.asMinutes()) % 60;
+
+        const obj = {
+          time: Internets[i].internetOffTime,
+          internetOffDuration: `${hours}:${minutes}`,
+        };
+        InternetStatusArray.push(obj);
+      }
+    } else {
+      InternetStatusArray = [];
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully Get User Internet Status Data",
+      InternetStatusArray,
+    });
+  } catch (error) {
+    res.status(500).send({ message: error.message, success: false });
+  }
+};
+// Update User Internet Status
+exports.updateUserInternetStatusController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { internetOffTime } = req.body;
+
+    // Getting Current Time In 12:58 PM This Formate
+    const time = moment().format("DD-MM-YYYY h:mm A");
+    const IntervalTime = `${time.split(" ")[1]} ${time.split(" ")[2]}`;
+
+    // Convert Milisecond Time In 12:58 PM This Formate
+    const formattedTime = moment(internetOffTime * 1).format("hh:mm A");
+    console.log(formattedTime);
+
+    const employee = await Employee.findById({ _id: new ObjectId(id) });
+
+    if (!employee) {
+      return res.status(501).send({ message: "Employee Not Found" });
+    }
+
+    const leng = employee?.attendance.length;
+
+    if (employee.attendance[leng - 1].attendanceStatus == true) {
+      const internetStatusTime = {
+        internetOffTime: formattedTime,
+        internetOnTime: IntervalTime,
+      };
+
+      employee.attendance.slice(-1)[0].internet.push(internetStatusTime);
+
+      await employee.save();
+
+      res.status(200).send({
+        message: "Location Fetched On Interval",
+        success: true,
+      });
+    } else {
+      return res.status(501).send({ message: "Employee Logout" });
+    }
   } catch (error) {
     res.status(500).send({ message: error.message, success: false });
   }

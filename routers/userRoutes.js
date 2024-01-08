@@ -22,6 +22,11 @@ const {
   latestAttendanceByPhoneController,
   serviceCheckInByPhoneController,
   serviceCheckOutByPhoneController,
+  getUserSummarizedAttendanceDataController,
+  getUserLoginAndLogoutAttendanceInfoController,
+  getUserWaitingAttendanceTimeController,
+  getUserInternetOnOffStatusController,
+  updateUserInternetStatusController,
 } = require("../controllers/userController");
 
 const { isLoggedIn } = require("../middlewares/auth.middleware");
@@ -70,6 +75,32 @@ userRouter.post(
   "/service/checkoutByPhone/:id",
   uploads,
   serviceCheckOutByPhoneController
+);
+
+userRouter.get(
+  "/getUserSummarizedAttendanceData/:id/:date",
+  getUserSummarizedAttendanceDataController
+);
+
+userRouter.get(
+  "/getUserLoginAndLogoutAttendanceInfo/:id/:date",
+  getUserLoginAndLogoutAttendanceInfoController
+);
+
+userRouter.get(
+  "/getUserWaitingAttendanceTime/:id/:date",
+  getUserWaitingAttendanceTimeController
+);
+
+// Update User Internet Status
+userRouter.post(
+  "/updateUserInternetStatus/:id",
+  updateUserInternetStatusController
+);
+
+userRouter.get(
+  "/getUserInternetOnOffStatus/:id/:date",
+  getUserInternetOnOffStatusController
 );
 // ---------------- Phone Routes ---------------------
 userRouter.patch(
